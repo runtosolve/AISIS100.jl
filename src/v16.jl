@@ -100,7 +100,7 @@ function e321(;Pne, Pcrℓ, design_code)
 end
 
 
-function e4(;Py, Pcrd, design_code)
+function e41(;Py, Pcrd, design_code)
 
     Ω = 1.80
     ϕ_LRFD = 0.85
