@@ -2,7 +2,6 @@ module v16
 
 using CSV, DataFrames, Unitful, UnitfulUS
 
-export calculate_factored_strength
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
