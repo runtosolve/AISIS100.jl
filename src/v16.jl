@@ -2,6 +2,24 @@ module v16
 
 using CSV, DataFrames, Unitful, UnitfulUS
 
+export calculate_factored_strength
+
+function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    if design_code == "AISI S100-16 ASD"
+        eRn  = Rn / Ω
+    elseif design_code == "AISI S100-16 LRFD"
+        eRn = Rn * ϕ_LRFD
+    elseif design_code == "AISI S100-16 LSD"
+        eRn = Rn * ϕ_LSD
+    elseif design_code == "nominal"
+        eRn = Rn
+    end
+
+    return eRn
+
+end
+
 
 function d21(;Ag, Fy, design_code)
 
