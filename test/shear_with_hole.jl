@@ -4,12 +4,17 @@ using S100AISI
 d_h = 30.0
 L_h = 30.0
 h = 108.1
-Vy = 34.275
+# Vy = 34.275
 a = h  #supposed to be twice the distance to end of the section
 b_f = 50.0
 E = 200000.0
 μ = 0.30
 t = 1.95
+
+
+Aw = h.*t
+
+Vy=0.6 .*Aw .*Fy
 
 A_h, d_h_eq, L_h_eq = S100AISI.v24.g39_10(d_h, L_h)  
 

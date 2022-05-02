@@ -275,9 +275,7 @@ function g21(h, t, Fy, Vcr, design_code)
     ϕ_LRFD = 0.95
     ϕ_LSD = 0.80
 
-    Aw = h.*t
-
-    Vy=0.6 .*Aw .*Fy
+    Aw, Vy = g215_6(h, t, Fy)
     λv=sqrt.(Vy./Vcr)
 
     if λv <= 0.815
@@ -293,6 +291,16 @@ function g21(h, t, Fy, Vcr, design_code)
     return Vn, eVn
 
 end
+
+function g215_6(h, t, Fy)
+
+    Aw = h * t
+    Vy=0.6 * Aw * Fy
+
+    return Aw, Vy
+
+end
+
 
 function g231(h, t, Fcr)
 
