@@ -260,6 +260,10 @@ function f421_6(My, Mcrd, My_net, design_code)
 
         eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
+    elseif λd > λd2
+
+        Mnd, eMnd = f411(My, Mcrd, design_code)
+
     end
 
     return Mnd, eMnd
