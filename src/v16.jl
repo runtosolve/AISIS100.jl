@@ -309,7 +309,7 @@ function f43(My, Mcrd, Sc, St, Z, Fy, design_code)
 end
 
 
-function g21_6(Vcr, Vy, design_code)
+function g21_3(Vcr, Vy, design_code)
 
     Ω = 1.60
     ϕ_LRFD = 0.95
