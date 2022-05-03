@@ -309,19 +309,19 @@ function f43(My, Mcrd, Sc, St, Z, Fy, design_code)
 end
 
 
-function g21(h, t, Fy, Vcr, design_code)
+function g21_6(Vcr, Vy, design_code)
 
     Ω = 1.60
     ϕ_LRFD = 0.95
     ϕ_LSD = 0.80
 
-    Aw, Vy = g215_6(h, t, Fy)
-    λv=sqrt.(Vy./Vcr)
+    # Aw, Vy = g215_6(h, t, Fy)
+    λv=sqrt.(Vy/Vcr)
 
     if λv <= 0.815
         Vn = Vy
     elseif (λv>0.815) & (λv<=1.227)
-        Vn = 0.815 .*sqrt.(Vcr.*Vy)
+        Vn = 0.815 *sqrt(Vcr*Vy)
     elseif λv > 1.227
         Vn = Vcr
     end
@@ -331,6 +331,29 @@ function g21(h, t, Fy, Vcr, design_code)
     return Vn, eVn
 
 end
+
+# function g211_212(Vcr, Vy, design_code)  #no transverse stiffeners
+
+#     Ω = 1.67
+#     ϕ_LRFD = 0.90
+#     ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
+
+#     λv=sqrt(Vy/Vcr)
+
+#     if λv <= 0.587
+#         Vn=Vy
+#     else
+#         Vn=(1-0.25*(Vcr/Vy)^0.65)*(Vcr/Vy)^0.65*Vy
+#     end
+
+#     eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+#     return Vn, eVn
+    
+# end
+
+
+
 
 function g215_6(h, t, Fy)
 
