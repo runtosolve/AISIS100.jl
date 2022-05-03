@@ -231,6 +231,42 @@ function f411(My, Mcrd, design_code)
 end
 
 
+function f421_6(My, Mcrd, My_net, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    λd = sqrt(My/Mcrd)
+    λd1 = 0.673*(My_net/My)^3
+    λd2 = 0.673*(1.7*(My/My_net)^(2.7)-0.7)
+
+    if λd <= λd1
+        Mnd = My_net
+        eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+    
+    elseif (λd > λd1) & (λd <= λd2)
+
+        Md2 = (1-0.22*(1/λd2)) * (1/λd2) * My
+        Mnd = My_net - ((My_net - Md2) / (λd2 - λd1)) * (λd - λd1)
+
+        Mnd_nh, eMnd_nh = f411(My, Mcrd, design_code)
+
+        if Mnd > Mnd_nh
+
+            Mnd = Mnd_nh
+
+        end
+
+        eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    end
+
+    return Mnd, eMnd
+
+end
+
+
 
 #inelastic reserve flexural distortional buckling
 function f43(My, Mcrd, Sc, St, Z, Fy, design_code)

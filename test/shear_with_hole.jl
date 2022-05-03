@@ -10,11 +10,9 @@ b_f = 50.0
 E = 200000.0
 μ = 0.30
 t = 1.95
+Fy = 271.0
 
-
-Aw = h.*t
-
-Vy=0.6 .*Aw .*Fy
+Aw, Vy = S100AISI.v16.g215_6(h, t, Fy)
 
 A_h, d_h_eq, L_h_eq = S100AISI.v24.g39_10(d_h, L_h)  
 
