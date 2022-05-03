@@ -655,6 +655,19 @@ function j611(Anv, Fu, design_code, connection_type)
 
 end
 
+function l21(Md, M, Ig)
+
+    Ieff = Ig * (Md/M)
+
+    if Ieff > Ig
+
+        Ieff = Ig
+    end
+
+    return Ieff
+
+end
+
 
 function table23131(CorZ,t,b,d,θ)
 
