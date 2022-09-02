@@ -19,25 +19,7 @@ function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 end
 
 
-function g211_212(Vcr, Vy, design_code)  #no transverse stiffeners
 
-    Ω = 1.67
-    ϕ_LRFD = 0.90
-    ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
-
-    λv=sqrt(Vy/Vcr)
-
-    if λv <= 0.587
-        Vn=Vy
-    else
-        Vn=(1-0.25*(Vcr/Vy)^0.65)*(Vcr/Vy)^0.65*Vy
-    end
-
-    eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
-    return Vn, eVn
-    
-end
 
 
 function g31_5(d_h, L_h, h, Vy)

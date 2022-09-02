@@ -121,6 +121,30 @@ function e41(;Py, Pcrd, design_code)
 
 end
 
+function f21(;Fcre, Fy, Sf, Sfy, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+  
+    if Fcre>=2.78*Fy
+        Fn = Fy
+    elseif (Fcre<2.78*Fy) & (Fcre>0.56*Fy)
+        Fn = 10/9 * Fy * (1 - (10*Fy)/(36*Fcre))
+    elseif Fcre <= 0.56*Fy
+        Fn = Fcre
+    end
+
+    Mne = minimum([Sf*Fn, Sfy*Fy])
+
+    eMne = calculate_factored_strength(Mne, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Mne, eMne
+ 
+end
+
+
+
 function f321(Mne, Mcrℓ, design_code)
 
     Ω = 1.67
@@ -681,6 +705,39 @@ function j611(Anv, Fu, design_code, connection_type)
     return Pnv, ePnv
 
 end
+
+function k2112(Cϕ, Mm, Fm, Pm, βo, VM, VF, CP, VP, VQ)
+
+    ϕ = Cϕ*(Mm*Fm*Pm)exp(-βo*sqrt(VM^2+VF^2+CP*VP^2+VQ^2))
+
+    return ϕ
+
+end
+
+function k2114(n)
+
+    m = n-1
+
+    if n>=4
+        CP = ((1+1/n)*m)/(m-2)
+    elseif n==3
+        CP = 5.7
+    end
+    
+    return CP
+
+end
+
+
+function k2117(n, Rt, Rn)
+
+    Cc = (n*sum(Rt.*Rn) - sum(Rt)*sum(Rn))/((sqrt(n*sum(Rt.^2)-sum(Rt)^2))*sqrt(n*sum(Rn.^2)-sum(Rn)^2))
+
+    return Cc
+
+end
+
+
 
 function l21(Md, M, Ig)
 
