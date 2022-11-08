@@ -461,15 +461,19 @@ end
 
 function h121(Pbar, Mxbar, Mybar, Pa, Max, May)
 
-    ActionP = abs.(Pbar./Pa)
-    ActionMx = abs.(Mxbar./Max)
-    ActionMy = abs.(Mybar./May)
+    action_P = abs.(Pbar./Pa)
+    action_Mx = abs.(Mxbar./Max)
+    action_My = abs.(Mybar./May)
 
-    Interaction = ActionP .+ActionMx .+ ActionMy
+    interaction = action_P .+ action_Mx .+ action_My
 
-    return ActionP, ActionMx, ActionMy, Interaction
+    return action_P, action_Mx, action_My, interaction
 
 end
+
+h121(;Pbar, Mxbar, Mybar, Pa, Max, May) = h121(Pbar, Mxbar, Mybar, Pa, Max, May)
+
+
 
 function h31(Pbar, Mbar, Pn, Mnℓo, design_code)
 
