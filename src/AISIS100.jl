@@ -1,4 +1,4 @@
-module S100AISI
+module AISIS100
 
 
 export v16

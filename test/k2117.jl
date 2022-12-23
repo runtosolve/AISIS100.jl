@@ -1,4 +1,4 @@
-using S100AISI
+using AISIS100
 
 M_test_t25 = [18053212, 18068901, 18348153]  #N-mm, t=2.5mm tests
 M_test_t30 = [24899589, 24899589, 24973628]  #N-mm, t=3.0mm tests
@@ -14,4 +14,4 @@ Rn = [ones(Float64, 3)* M_FEA_t25; ones(Float64, 3)* M_FEA_t30; ones(Float64, 3)
 
 n = length(Rt)
 
-Cc = S100AISI.v16.k2117(n, Rt, Rn)
+Cc = AISIS100.v16.k2117(n, Rt, Rn)

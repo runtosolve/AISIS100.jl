@@ -179,9 +179,9 @@ git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "1.2.2"
 
-[[deps.S100AISI]]
+[[deps.AISIS100]]
 deps = ["CSV", "DataFrames", "Unitful", "UnitfulUS"]
-path = "/Users/crismoen/.julia/dev/S100AISI"
+path = "/Users/crismoen/.julia/dev/AISIS100"
 uuid = "01f7396e-a581-4110-84fa-e8964400bef8"
 version = "0.1.0"
 
