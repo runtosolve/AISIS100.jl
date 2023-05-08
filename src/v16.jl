@@ -1,6 +1,6 @@
 module v16
 
-using CSV, DataFrames, Unitful, UnitfulUS
+using CSV, DataFrames, Unitful
 
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
@@ -565,7 +565,7 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
 
     end
 
-    if (t > 0.10u"sinch_us") | (t > 2.54u"mm")
+    if (t > 0.10u"inch") | (t > 2.54u"mm")
 
         Pn = 0.75 * tw * L * Fxx
 
@@ -578,6 +578,10 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
            Pnv = Pn
 
         end
+
+    else
+
+        Pn = NaN
 
     end
 
@@ -592,14 +596,14 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
     end
 
 
-    return Pnv, ePnv
+    return Pnv1, Pnv2, Pn, Pnv, ePnv
 
 end
 
 
 function tablej3311(;d, t, hole_shape)
 
-    if (t >= 0.024u"sinch_us") & (t <= 0.1875u"sinch_us")
+    if (t >= 0.024u"inch") & (t <= 0.1875u"inch")
 
         if hole_shape == "standard hole"
     
