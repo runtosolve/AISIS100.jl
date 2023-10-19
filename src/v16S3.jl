@@ -1,4 +1,4 @@
-module v16
+module v16S3
 
 using CSV, DataFrames, Unitful
 
@@ -761,7 +761,28 @@ function l21(Md, M, Ig)
 end
 
 
-function table23131(CorZ,t,b,d,θ)
+function appAj341(;Ab, Fn, design_code)
+
+    Ω = 2.00  
+    ϕ = 0.75
+
+    Pn = Ab * Fn
+
+    if design_code == "AISI S100-16 ASD"
+       ePn  = Pn / Ω
+    elseif design_code == "AISI S100-16 LRFD"
+        ePn = Pn * ϕ
+    elseif design_code == "nominal"
+        ePn = Pn
+    end
+
+    return Pn, ePn
+
+end
+
+
+
+function table_2_3_3__1(CorZ,t,b,d,θ)
 
     CorZ = convert(Int8, CorZ)
 
@@ -796,26 +817,86 @@ function table23131(CorZ,t,b,d,θ)
 
 end
 
+function appendix2_2_3_3_1__1(Ag, Fcrd)
 
-function appAj341(;Ab, Fn, design_code)
-
-    Ω = 2.00  
-    ϕ = 0.75
-
-    Pn = Ab * Fn
-
-    if design_code == "AISI S100-16 ASD"
-       ePn  = Pn / Ω
-    elseif design_code == "AISI S100-16 LRFD"
-        ePn = Pn * ϕ
-    elseif design_code == "nominal"
-        ePn = Pn
-    end
-
-    return Pn, ePn
+    Pcrd = Ag * Fcrd
 
 end
 
+function appendix2_2_3_3_1__2(kϕfe, kϕwe, kϕ, kϕfg, kϕwg)
+
+    Fcrd = (kϕfe +kϕwe +kϕ) / (kϕfg + kϕwg)
+
+end
+
+function appendix2_2_3_3_1__3(E, Ixf, xof, xhf, Cwf, Ixyf, Iyf, Ld, G, Jf)
+
+    kϕfe = (π / Ld)^4 * (E * Cwf + E * Ixf * (xof - xhf)^2 * (1 - Ixyf^2 / (Ixf * Iyf))) + (π / Ld)^2 * G * Jf
+
+end
+
+function appendix2_2_3_3_1__4(E, t, μ, ho)
+
+    kϕwe = E * t^3 / (12 * (1 - μ^2)) * (2 / ho)
+
+end
+
+function appendix2_2_3_3_1__5(Ld, Ixf, Iyf, Af, xhf, yof, xof, Ixyf)
+
+    kϕfg = (π / Ld)^2 * (Ixf + Iyf + Af * (xhf^2 + yof^2 - 2 * yof * (xof - xhf) * (Ixyf / Iyf)+ (xof - xhf)^2 * (Ixyf / Iyf)^2))
+
+end
+
+function appendix2_2_3_3_1__6(Ld, t, ho)
+
+    kϕwg = (π / Ld)^2 * t * ho^3 / 60
+
+end
+
+
+function appendix2_2_3_3_1__7(ho, μ, t, Ixf, xof, xhf, Cwf, Ixyf, Iyf)
+
+    Lcrd = π * ho * (((6 * (1 - μ^2)) / (t^3 * ho^3)) * (Cwf + Ixf * (xof - xhf)^2 * (1 - Ixyf^2 / (Ixf * Iyf)))) ^ (1/4)
+
+    # Lcrd = ((6 * π^4 * ho * (1 - μ^2))/t^3) * (Ixf * (xof - xhf)^2 + Cwf - Ixyf^2/Iyf*(xof - xhf)^2)^ (1/4)
+
+end
+
+
+
+
+
+function appendix2_3311(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, CurvatureSign, Lm, kϕ, Sf)
+
+    θc=deg2rad(θc)
+    bc=b-t/2-t/2*tan(θc/2)
+    dc=d-t/2*tan(θc/2)
+
+    Af,Jf,Ixf,Iyf,Ixyf,Cwf,xof,xhf,yhf,yof=table2331(CorZ,t,bc,dc,θc)
+
+    Lcrd, Ld = app23317(ho, μ, t, Ixf, xof, xhf, Cwf, Ixyf, Iyf, Lm)
+
+    kϕfe=app23133(E,Ixf,xof,hxf,Cwf,Ixyf,Iyf,L,G,Jf)
+
+    kϕwe=app23335(E,t,μ,ho,L)
+
+    kϕfg=app23315(L,Af,xof,hxf,Ixyf,Iyf,yof,Ixf)
+
+    kϕwg=app23316(f1,f2,ho,t,L)
+
+    Fcrd=app23311(kϕfe, kϕwe, kϕ, kϕfg, kϕwg)
+
+    Mcrd=Sf*Fcrd
+
+    return Mcrd
+
+end
+
+
+
+
+
+######
 
 function app23331(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, CurvatureSign, Lm, kϕ, Sf)
 
@@ -863,15 +944,7 @@ function app23333(L, Lm, M1, M2)
 end
 
 
-function app23317(ho, μ, t, Ixf, xof, xhf, Cwf, Ixyf, Iyf, Lm)
 
-    Lcrd= π * ho * ((6 * (1 - μ^2)) / (t^3 * ho^3) * (Cwf + Ixf * (xof - xhf)^2 * (1 - Ixyf^2 / (Ixf * Iyf)))) ^ 1/4
-
-    L=minimum([Lcrd, Lm])
-
-    return Lcrd, L
-
-end
 
 
 
