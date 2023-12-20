@@ -121,19 +121,37 @@ function e41(;Py, Pcrd, design_code)
 
 end
 
-function f21(;Fcre, Fy, Sf, Sfy, design_code)
+
+function f2_1__3_4_5(Fcre, Fy)
+
+    if Fcre>=2.78*Fy
+        Fn = Fy
+    elseif (Fcre<(2.78*Fy)) & (Fcre>(0.56*Fy))
+        Fn = 10/9 * Fy * (1 - (10*Fy)/(36*Fcre))
+    elseif Fcre <= 0.56*Fy
+        Fn = Fcre
+    end
+
+    return Fn
+
+end
+
+
+function f2_1__1_2(;Fcre, Fy, Sf, Sfy, design_code)
 
     Ω = 1.67
     ϕ_LRFD = 0.90
     ϕ_LSD = 0.90
   
-    if Fcre>=2.78*Fy
-        Fn = Fy
-    elseif (Fcre<2.78*Fy) & (Fcre>0.56*Fy)
-        Fn = 10/9 * Fy * (1 - (10*Fy)/(36*Fcre))
-    elseif Fcre <= 0.56*Fy
-        Fn = Fcre
-    end
+    # if Fcre>=2.78*Fy
+    #     Fn = Fy
+    # elseif (Fcre<2.78*Fy) & (Fcre>0.56*Fy)
+    #     Fn = 10/9 * Fy * (1 - (10*Fy)/(36*Fcre))
+    # elseif Fcre <= 0.56*Fy
+    #     Fn = Fcre
+    # end
+
+    Fn = f2_1__3_4_5(Fcre, Fy)
 
     Mne = minimum([Sf*Fn, Sfy*Fy])
 
@@ -333,48 +351,48 @@ function f43(My, Mcrd, Sc, St, Z, Fy, design_code)
 end
 
 
-function g21_3(Vcr, Vy, design_code)
+# function g21_3(Vcr, Vy, design_code)
 
-    Ω = 1.60
-    ϕ_LRFD = 0.95
-    ϕ_LSD = 0.80
+#     Ω = 1.60
+#     ϕ_LRFD = 0.95
+#     ϕ_LSD = 0.80
 
-    # Aw, Vy = g215_6(h, t, Fy)
-    λv=sqrt.(Vy/Vcr)
+#     # Aw, Vy = g215_6(h, t, Fy)
+#     λv=sqrt.(Vy/Vcr)
 
-    if λv <= 0.815
-        Vn = Vy
-    elseif (λv>0.815) & (λv<=1.227)
-        Vn = 0.815 *sqrt(Vcr*Vy)
-    elseif λv > 1.227
-        Vn = Vcr
-    end
-
-    eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
-    return Vn, eVn
-
-end
-
-# function g211_212(Vcr, Vy, design_code)  #no transverse stiffeners
-
-#     Ω = 1.67
-#     ϕ_LRFD = 0.90
-#     ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
-
-#     λv=sqrt(Vy/Vcr)
-
-#     if λv <= 0.587
-#         Vn=Vy
-#     else
-#         Vn=(1-0.25*(Vcr/Vy)^0.65)*(Vcr/Vy)^0.65*Vy
+#     if λv <= 0.815
+#         Vn = Vy
+#     elseif (λv>0.815) & (λv<=1.227)
+#         Vn = 0.815 *sqrt(Vcr*Vy)
+#     elseif λv > 1.227
+#         Vn = Vcr
 #     end
 
 #     eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
 #     return Vn, eVn
-    
+
 # end
+
+function g2_1__1_2_3(Vcr, Vy, design_code)  #no transverse stiffeners
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
+
+    λv=sqrt(Vy/Vcr)
+
+    if λv <= 0.587
+        Vn=Vy
+    else
+        Vn=(1-0.25*(Vcr/Vy)^0.65)*(Vcr/Vy)^0.65*Vy
+    end
+
+    eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Vn, eVn
+    
+end
 
 
 
@@ -817,6 +835,31 @@ function table_2_3_3__1(CorZ,t,b,d,θ)
 
 end
 
+
+function appendix2_2_3_1__1(E, Ix, Kx, Lx)
+
+    Pex = π^2 * E * Ix / (Kx * Lx)^2
+
+end
+
+function appendix2_2_3_1__2(E, Iy, Ky, Ly)
+
+    Pey = π^2 * E * Iy / (Ky * Ly)^2
+
+end
+
+function appendix2_2_3_1__3(ro, G, J, E, Cw, Kt, Lt)
+
+    Pt = (1 / ro^2) * (G * J + π^2 * E * Cw / (Kt * Lt)^2)
+
+end
+
+function appendix2_2_3_1__4(xo, ro, Kt, Lt, Kx, Lx)
+
+   β = 1 - (xo / ro)^2 * ((Kt * Lt) / (Kx * Lx))^2
+
+end
+
 function appendix2_2_3_3_1__1(Ag, Fcrd)
 
     Pcrd = Ag * Fcrd
@@ -862,8 +905,17 @@ function appendix2_2_3_3_1__7(ho, μ, t, Ixf, xof, xhf, Cwf, Ixyf, Iyf)
 
 end
 
+function appendix2_2_3_3_2__4(ho, μ, t, Ixf, xof, xhf, Cwf, Ixyf, Iyf)
 
+    Lcrd = π * ho * (((4 * (1 - μ^2)) / (t^3 * ho^3)) * (Cwf + Ixf * (xof - xhf)^2 * (1 - Ixyf^2 / (Ixf * Iyf))) + 1/720) ^ (1/4)
 
+end
+
+function appendix2_2_3_1_2_1__1(Cb, ro, Pey, Pt)
+
+    Mcre = Cb * ro * sqrt(Pey * Pt)
+
+end
 
 
 function appendix2_3311(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, CurvatureSign, Lm, kϕ, Sf)
