@@ -1,6 +1,6 @@
 module v16S3
 
-using CSV, DataFrames, Unitful
+using CSV, DataFrames, Unitful, Statistics, LinearAlgebra
 
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
@@ -860,6 +860,29 @@ function appendix2_2_3_1__4(xo, ro, Kt, Lt, Kx, Lx)
 
 end
 
+function appendix2_2_3_1__6(section_coords, Iy, xo, t, xc, yc)
+
+    num_elements = size(section_coords)[1] - 1
+
+    integral_x3 = 0.0
+    integral_xy2 = 0.0
+    for i =1:num_elements
+
+        element_length = norm(section_coords[i+1, :] - section_coords[i, :])
+        x_element = mean([section_coords[i, 1], section_coords[i+1, 1]]) - xc
+        y_element = mean([section_coords[i, 2], section_coords[i+1, 2]]) - yc
+        dA = element_length * t
+        integral_x3 += x_element^3 * dA
+        integral_xy2 += x_element * y_element^2 * dA 
+
+    end
+
+    j = 1 / (2 * Iy) * (integral_x3 + integral_xy2) - xo
+
+    return j 
+
+end
+
 function appendix2_2_3_3_1__1(Ag, Fcrd)
 
     Pcrd = Ag * Fcrd
@@ -914,6 +937,12 @@ end
 function appendix2_2_3_1_2_1__1(Cb, ro, Pey, Pt)
 
     Mcre = Cb * ro * sqrt(Pey * Pt)
+
+end
+
+function appendix2_2_3_1_2_2__1(Cb, Pex, Cs, j, ro, Pt)
+
+    Mcre = Cb * Pex * (Cs * abs(j) + sqrt(j^2 + ro^2 * Pt/Pex))
 
 end
 

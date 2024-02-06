@@ -1,2 +1,5 @@
 [deps]
 AISIS100 = "01f7396e-a581-4110-84fa-e8964400bef8"
+CUFSM = "82b4978f-06ae-48e0-88e8-a26b4f7a0fa1"
+CrossSection = "a0443d1a-7a62-4d3d-b993-57eb2183b07a"
+LinesCurvesNodes = "74a74c3a-221d-4cd1-a4eb-c3c8149e7592"
