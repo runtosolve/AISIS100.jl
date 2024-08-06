@@ -539,7 +539,7 @@ function h33(Pbar, Mbar, Pn, Mnℓo, design_code)
 
 end
 
-function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
+function j26(L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code, thickness_units)
 
     t = minimum([t1, t2])
 
@@ -582,8 +582,8 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
         ϕ_LSD = 0.60
 
     end
-
-    if (t > 0.10u"inch") | (t > 2.54u"mm")
+        
+    if ((thickness_units == "inches") & (t > 0.10)) | ((thickness_units == "mm") &  (t > 2.54)) 
 
         Pn = 0.75 * tw * L * Fxx
 
@@ -593,7 +593,7 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
 
         if Pn < Pnv
 
-           Pnv = Pn
+            Pnv = Pn
 
         end
 
@@ -603,15 +603,17 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
 
     end
 
-    if design_code == "AISI S100-16 ASD"
-        ePnv  = Pnv / Ω
-    elseif design_code == "AISI S100-16 LRFD"
-        ePnv = Pnv * ϕ_LRFD
-    elseif design_code == "AISI S100-16 LSD"
-        ePnv = Pnv * ϕ_LSD
-    elseif design_code == "nominal"
-        ePnv = Pnv
-    end
+    # if design_code == "AISI S100-16 ASD"
+    #     ePnv  = Pnv / Ω
+    # elseif design_code == "AISI S100-16 LRFD"
+    #     ePnv = Pnv * ϕ_LRFD
+    # elseif design_code == "AISI S100-16 LSD"
+    #     ePnv = Pnv * ϕ_LSD
+    # elseif design_code == "nominal"
+    #     ePnv = Pnv
+    # end
+
+    ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
 
     return Pnv1, Pnv2, Pn, Pnv, ePnv
