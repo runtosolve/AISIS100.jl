@@ -885,6 +885,12 @@ function appendix2_2_3_1__6(section_coords, Iy, xo, t, xc, yc)
 
 end
 
+function appendix2_2_2_3_1__7(Ix, A, Iy, xo, yo)
+
+    ro = sqrt(Ix/A + Iy/A + xo^2 + yo^2)
+
+end
+
 function appendix2_2_3_3_1__1(Ag, Fcrd)
 
     Pcrd = Ag * Fcrd
