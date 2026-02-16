@@ -4,11 +4,11 @@ export h411, h42
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
-    if design_code == "AISI S100-16 ASD"
+    if design_code == "AISI S100-24 ASD"
         eRn  = Rn / Ω
-    elseif design_code == "AISI S100-16 LRFD"
+    elseif design_code == "AISI S100-24 LRFD"
         eRn = Rn * ϕ_LRFD
-    elseif design_code == "AISI S100-16 LSD"
+    elseif design_code == "AISI S100-24 LSD"
         eRn = Rn * ϕ_LSD
     elseif design_code == "nominal"
         eRn = Rn
@@ -18,6 +18,30 @@ function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
 end
 
+
+function e2(Fcre, Fy, Ag, design_code)
+
+    Ω = 1.80
+    ϕ_LRFD = 0.85
+    ϕ_LSD = 0.80
+  
+    λc = sqrt(Fy/Fcre)
+
+    if λc <= 1.5
+        Fn = 0.658^((λc)^2) * Fy
+    else
+        Fn = (0.877 /(λc)^2) * Fy
+    end
+
+    Pne = Ag * Fn
+
+    ePne = calculate_factored_strength(Pne, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    results = (Rn=Pne, eRn=ePne)
+
+    return results
+
+end
 
 
 
