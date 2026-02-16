@@ -9,8 +9,8 @@ export v16S3
 include("v16S3.jl")
 using .v16S3
 
-export v24
-include("v24.jl")
-using .v24
+export v2024
+include("v2024.jl")
+using .v2024
 
 end # module
