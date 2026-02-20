@@ -4,11 +4,11 @@ export h411, h42
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
-    if design_code == "AISI S100-2024 ASD"
+    if design_code == "ASD"
         eRn  = Rn / Ω
-    elseif design_code == "AISI S100-2024 LRFD"
+    elseif design_code == "LRFD"
         eRn = Rn * ϕ_LRFD
-    elseif design_code == "AISI S100-2024 LSD"
+    elseif design_code == "LSD"
         eRn = Rn * ϕ_LSD
     elseif design_code == "nominal"
         eRn = Rn

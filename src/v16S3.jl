@@ -5,11 +5,11 @@ using CSV, DataFrames, Unitful, Statistics, LinearAlgebra
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
-    if design_code == "AISI S100-16 ASD"
+    if design_code == "ASD"
         eRn  = Rn / Ω
-    elseif design_code == "AISI S100-16 LRFD"
+    elseif design_code == "LRFD"
         eRn = Rn * ϕ_LRFD
-    elseif design_code == "AISI S100-16 LSD"
+    elseif design_code == "LSD"
         eRn = Rn * ϕ_LSD
     elseif design_code == "nominal"
         eRn = Rn
