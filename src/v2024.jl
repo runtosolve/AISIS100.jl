@@ -45,6 +45,97 @@ end
 
 
 
+function e32(Pne, Pcrℓ, design_code)
+
+    Ω = 1.80
+    ϕ_LRFD = 0.85
+    ϕ_LSD = 0.80
+
+    λℓ = sqrt(Pne/Pcrℓ)
+
+    Pnℓ = min(1.2*Pne*((1 + 0.10*λℓ^2)/(1 + 0.55*λℓ^2)), Pne)
+
+    ePnℓ = calculate_factored_strength(Pnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    results = (Rn=Pnℓ, eRn=ePnℓ)
+
+    return results
+
+end
+
+
+function e4(Py, Pcrd, design_code)
+
+    Ω = 1.80
+    ϕ_LRFD = 0.85
+    ϕ_LSD = 0.80
+
+    λd = sqrt(Py/Pcrd)
+
+    Pnd = min(1.2*Py*((1 + 0.05*λd^2)/(1 + 0.67*λd^2)), Py)
+
+    ePnd = calculate_factored_strength(Pnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    results = (Rn=Pnd, eRn=ePnd)
+
+    return results
+
+end
+
+
+function f32(Mne, Mcrℓ, ks, αs, βs, My3, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    λℓ=sqrt(Mne/Mcrℓ)
+
+
+    Mnℓ = min(ks*Mne*((1+0.10*αs*λℓ*λℓ)/(1+0.55*βs*λℓ*λℓ)),My3)
+
+
+    # eMnℓ = Mnℓ * StrengthFactor
+
+    eMnℓ = calculate_factored_strength(Mnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Mnℓ, eMnℓ
+
+end
+
+
+function f4(My, Mcrd, Mp, αs, βs, My3, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    λd = sqrt(My/Mcrd)
+
+    Mnd = min(Mp*((1 + 0.07*αs*λd^2)/(1 + 0.60*βs*λd^2)), My3)
+
+    eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Mnd, eMnd
+
+end
+
+function g2_1__1_2_3(Vcr, Vy, design_code)  #no transverse stiffeners
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
+
+    λv=sqrt(Vy/Vcr)
+
+
+    Vn = min(1.2*Vy/(1+0.57*λv*λv),Vy)
+
+    eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Vn, eVn
+    
+end
 
 function g31_5(d_h, L_h, h, Vy)
 
@@ -94,6 +185,19 @@ function g39_10(d_h, L_h)
 end
 
 
+
+
+
+function g51(t, h, Fy, θ, C, C_R, R, C_N, N, C_h, ϕ_w, Ω_w, ϕ_w_LSD, design_code)
+
+    Pn = C * t^2 * Fy * sin(deg2rad(θ)) * (1-C_R*sqrt(R/t)) * (1+C_N*sqrt(N/t)) * (1-C_h*sqrt(h/t))
+
+    ePn = calculate_factored_strength(Pn, Ω_w, ϕ_w, ϕ_w_LSD, design_code)
+
+    return Pn, ePn
+
+end
+
 function h411(Cw, Fy, Wn, design_code)
 
     Ω = 1.67
@@ -128,53 +232,10 @@ function h42(Mxbar,Mybar,Bbar,Mybar_freeflange, Maxℓo,Mayℓo,Ba, Mayℓo_free
 
 end
 
-function f32(Mne, Mcrℓ, ks, αs, βs, My3, design_code)
-
-    Ω = 1.67
-    ϕ_LRFD = 0.90
-    ϕ_LSD = 0.90
-
-    λℓ=sqrt(Mne/Mcrℓ)
 
 
-    Mnℓ = min(ks*Mne*((1+0.10*αs*λℓ*λℓ)/(1+0.55*βs*λℓ*λℓ)),My3)
 
 
-    # eMnℓ = Mnℓ * StrengthFactor
-
-    eMnℓ = calculate_factored_strength(Mnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
-    return Mnℓ, eMnℓ
-
-end
-
-function g2_1__1_2_3(Vcr, Vy, design_code)  #no transverse stiffeners
-
-    Ω = 1.67
-    ϕ_LRFD = 0.90
-    ϕ_LSD = 0.75  #check this?  seems low compared to f3 S100-16
-
-    λv=sqrt(Vy/Vcr)
-
-
-    Vn = min(1.2*Vy/(1+0.57*λv*λv),Vy)
-
-    eVn = calculate_factored_strength(Vn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
-    return Vn, eVn
-    
-end
-
-
-function g51(t, h, Fy, θ, C, C_R, R, C_N, N, C_h, ϕ_w, Ω_w, ϕ_w_LSD, design_code)
-
-    Pn = C * t^2 * Fy * sin(deg2rad(θ)) * (1-C_R*sqrt(R/t)) * (1+C_N*sqrt(N/t)) * (1-C_h*sqrt(h/t))
-
-    ePn = calculate_factored_strength(Pn, Ω_w, ϕ_w, ϕ_w_LSD, design_code)
-
-    return Pn, ePn
-
-end
 
 
 end #module
