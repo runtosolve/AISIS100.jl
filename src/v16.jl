@@ -86,15 +86,17 @@ function e321(;Pne, Pcrℓ, design_code)
     ϕ_LRFD = 0.85
     ϕ_LSD = 0.80
 
-    if design_code == "AISI S100-16 ASD"
-        ePnℓ  = Pnℓ / Ω
-     elseif design_code == "AISI S100-16 LRFD"
-        ePnℓ = Pnℓ * ϕ_LRFD
-     elseif design_code == "AISI S100-16 LSD"
-        ePnℓ = Pnℓ * ϕ_LSD
-     elseif design_code == "nominal"
-         ePnℓ = Pnℓ
-    end
+    # if design_code == "AISI S100-16 ASD"
+    #     ePnℓ  = Pnℓ / Ω
+    #  elseif design_code == "AISI S100-16 LRFD"
+    #     ePnℓ = Pnℓ * ϕ_LRFD
+    #  elseif design_code == "AISI S100-16 LSD"
+    #     ePnℓ = Pnℓ * ϕ_LSD
+    #  elseif design_code == "nominal"
+    #      ePnℓ = Pnℓ
+    # end
+
+     ePnℓ = calculate_factored_strength(Pnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
     return Pnℓ, ePnℓ
 
