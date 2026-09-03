@@ -409,16 +409,6 @@ function g233(a, h)
 end
 
 
-# Section G3: shear strength of C-section webs with holes. Per S100-16, the
-# shear strength is calculated per Section G2 (Vcr from G2.3, using the
-# actual web h -- not reduced for the hole), multiplied by the reduction
-# factor qs defined here (Eq. G3-1, -2, -3). hole_shape is "circular" or
-# "noncircular"; c is the clear distance from the hole edge to the web edge.
-# Applicability limits (a)-(h) -- dh/h<=0.7, h/t<=200, hole centered at
-# mid-depth, clear spacing >=18in (457mm), corner radii >=2t for noncircular
-# holes, dh<=2.5in (63.5mm) and Lh<=4.5in (114mm) for noncircular holes,
-# diameter<=6in (152mm) for circular holes, dh>9/16in (14.3mm) -- are not
-# checked here; the caller is responsible for confirming they're satisfied.
 function g31_2_3(h, t, d_h, hole_shape)
 
     if hole_shape == "circular"
