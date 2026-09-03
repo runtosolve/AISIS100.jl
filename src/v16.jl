@@ -86,15 +86,7 @@ function e321(;Pne, Pcrℓ, design_code)
     ϕ_LRFD = 0.85
     ϕ_LSD = 0.80
 
-    if design_code == "ASD"
-        ePnℓ  = Pnℓ / Ω
-     elseif design_code == "LRFD"
-        ePnℓ = Pnℓ * ϕ_LRFD
-     elseif design_code == "LSD"
-        ePnℓ = Pnℓ * ϕ_LSD
-     elseif design_code == "nominal"
-         ePnℓ = Pnℓ
-    end
+    ePnℓ = calculate_factored_strength(Pnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
     return Pnℓ, ePnℓ
 
@@ -614,15 +606,7 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
 
     end
 
-    if design_code == "ASD"
-        ePnv  = Pnv / Ω
-    elseif design_code == "LRFD"
-        ePnv = Pnv * ϕ_LRFD
-    elseif design_code == "LSD"
-        ePnv = Pnv * ϕ_LSD
-    elseif design_code == "nominal"
-        ePnv = Pnv
-    end
+    ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
 
     return Pnv1, Pnv2, Pn, Pnv, ePnv
@@ -703,15 +687,7 @@ function j3311(;C, mf, d, t, Fu, design_code)
     ϕ_LRFD = 0.60
     ϕ_LSD = 0.50
 
-    if design_code == "ASD"
-        ePnb  = Pnb / Ω
-     elseif design_code == "LRFD"
-        ePnb = Pnb * ϕ_LRFD
-     elseif design_code == "LSD"
-        ePnb = Pnb * ϕ_LSD
-     elseif design_code == "nominal"
-         ePnb = Pnb
-    end
+    ePnb = calculate_factored_strength(Pnb, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
     return Pnb, ePnb 
 
@@ -727,15 +703,7 @@ function j611(Anv, Fu, design_code, connection_type)
         ϕ_LRFD = 0.65
         ϕ_LSD = 0.75
 
-        if design_code == "ASD"
-            ePnv  = Pnv / Ω
-         elseif design_code == "LRFD"
-            ePnv = Pnv * ϕ_LRFD
-         elseif design_code == "LSD"
-            ePnv = Pnv * ϕ_LSD
-         elseif design_code == "nominal"
-             ePnv = Pnv
-        end
+        ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
     end
 
@@ -833,13 +801,7 @@ function appAj341(;Ab, Fn, design_code)
 
     Pn = Ab * Fn
 
-    if design_code == "ASD"
-       ePn  = Pn / Ω
-    elseif design_code == "LRFD"
-        ePn = Pn * ϕ
-    elseif design_code == "nominal"
-        ePn = Pn
-    end
+    ePn = calculate_factored_strength(Pn, Ω, ϕ, [], design_code)
 
     return Pn, ePn
 
