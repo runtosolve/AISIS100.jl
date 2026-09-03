@@ -712,10 +712,21 @@ function h3__1(P, M, Pn, Mno, design_code)
     ϕ_LRFD = 0.90
     ϕ_LSD = 0.75
 
-    LHS = 0.91 * (P / Pn) + (M / Mno)
-    RHS = design_code == "ASD" ? 1.33 / Ω : (design_code == "LRFD" ? 1.33 * ϕ_LRFD : 1.33 * ϕ_LSD)
+    actionP = 0.91 * (P / Pn)
+    actionM = M / Mno
+    interaction = actionP + actionM
 
-    return LHS, RHS, LHS <= RHS
+    if design_code == "ASD"
+        DC = interaction / (1.33 / Ω)
+    elseif design_code == "LRFD"
+        DC = interaction / (1.33 * ϕ_LRFD)
+    elseif design_code == "LSD"
+        DC = interaction / (1.33 * ϕ_LSD)
+    elseif design_code == "nominal"
+        DC = interaction / 1.33
+    end
+
+    return actionP, actionM, interaction, DC
 
 end
 
