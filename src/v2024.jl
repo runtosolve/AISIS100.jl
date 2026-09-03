@@ -488,13 +488,13 @@ end
 
 
 #Eqs. G3-9 to G3-10
-function g3__9to10(d_h, L_h)
+#Eqs. G3-9 to G3-10: A_h (area of the circular or slotted hole) is a caller-supplied input rather than computed here, since its formula depends on hole shape (circular: A_h = π(d_h/2)^2; slotted/oval "stadium" shape: A_h = width*(length-width) + π(width/2)^2, etc.)
+function g3__9to10(A_h, d_h, L_h)
 
-    A_h = π*(d_h/2)^2  #for circular hole only, not slotted hole
     d_h_eq = (0.003*(L_h/d_h) + 0.822) * d_h
     L_h_eq = 0.865*A_h/d_h_eq
 
-    return A_h, d_h_eq, L_h_eq
+    return d_h_eq, L_h_eq
 
 end
 
@@ -766,6 +766,23 @@ function h4__1(Mxbar, Mybar, Bbar, Max, May, Ba)
     Interaction = ActionMx .+ ActionMy .+ ActionB
 
     return ActionMx, ActionMy, ActionB, Interaction
+
+end
+
+#---------------------------------------------------------------------------
+# SECTION L — DESIGN FOR SERVICEABILITY
+#---------------------------------------------------------------------------
+
+#Eq. L2.1-1, Section L2.1 (effective moment of inertia for deflection determination, Ieff)
+function l2_1__1(Md, M, Ig)
+
+    Ieff = Ig * (Md / M)
+
+    if Ieff > Ig
+        Ieff = Ig
+    end
+
+    return Ieff
 
 end
 

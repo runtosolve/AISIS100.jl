@@ -86,17 +86,7 @@ function e321(;Pne, Pcrℓ, design_code)
     ϕ_LRFD = 0.85
     ϕ_LSD = 0.80
 
-    # if design_code == "AISI S100-16 ASD"
-    #     ePnℓ  = Pnℓ / Ω
-    #  elseif design_code == "AISI S100-16 LRFD"
-    #     ePnℓ = Pnℓ * ϕ_LRFD
-    #  elseif design_code == "AISI S100-16 LSD"
-    #     ePnℓ = Pnℓ * ϕ_LSD
-    #  elseif design_code == "nominal"
-    #      ePnℓ = Pnℓ
-    # end
-
-     ePnℓ = calculate_factored_strength(Pnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+    ePnℓ = calculate_factored_strength(Pnℓ, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
     return Pnℓ, ePnℓ
 
@@ -419,6 +409,25 @@ function g233(a, h)
 end
 
 
+function g31_2_3(h, t, d_h, hole_shape)
+
+    if hole_shape == "circular"
+        c = h/2 - d_h/2.83   # Eq. G3-2
+    elseif hole_shape == "noncircular"
+        c = h/2 - d_h/2      # Eq. G3-3
+    end
+
+    if c/t >= 54
+        qs = 1.0
+    else
+        qs = c/(54*t)   # Eq. G3-1, valid for 5 <= c/t < 54
+    end
+
+    return qs, c
+
+end
+
+
 
 function g51(t, h, Fy, θ, C, C_R, R, C_N, N, C_h, ϕ_w, Ω_w, ϕ_w_LSD, design_code)
 
@@ -487,11 +496,11 @@ function h31(Pbar, Mbar, Pn, Mnℓo, design_code)
     ϕ_LRFD = 0.95
     ϕ_LSD = 0.75
 
-    if design_code == "AISI S100-16 ASD"
+    if design_code == "ASD"
         DC = interaction / (1.33/Ω)
-    elseif design_code == "AISI S100-16 LRFD"
+    elseif design_code == "LRFD"
         DC = interaction / (1.33*ϕ_LRFD)
-    elseif design_code == "AISI S100-16 LSD"
+    elseif design_code == "LSD"
         DC = interaction / (1.33*ϕ_LSD)
     elseif design_code == "nominal"
         DC = interaction / 1.33
@@ -511,11 +520,11 @@ function h33(Pbar, Mbar, Pn, Mnℓo, design_code)
     ϕ_LRFD = 0.90
     ϕ_LSD = 0.80
 
-    if design_code == "AISI S100-16 ASD"
+    if design_code == "ASD"
         DC = interaction / (1.65/Ω)
-    elseif design_code == "AISI S100-16 LRFD"
+    elseif design_code == "LRFD"
         DC = interaction / (1.65*ϕ_LRFD)
-    elseif design_code == "AISI S100-16 LSD"
+    elseif design_code == "LSD"
         DC = interaction / (1.65*ϕ_LSD)
     end
 
@@ -586,16 +595,6 @@ function j25(;L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code)
         Pn = NaN
 
     end
-
-    # if design_code == "AISI S100-16 ASD"
-    #     ePnv  = Pnv / Ω
-    # elseif design_code == "AISI S100-16 LRFD"
-    #     ePnv = Pnv * ϕ_LRFD
-    # elseif design_code == "AISI S100-16 LSD"
-    #     ePnv = Pnv * ϕ_LSD
-    # elseif design_code == "nominal"
-    #     ePnv = Pnv
-    # end
 
     ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
 
@@ -678,18 +677,7 @@ function j3311(;C, mf, d, t, Fu, design_code)
     ϕ_LRFD = 0.60
     ϕ_LSD = 0.50
 
-    # if design_code == "AISI S100-16 ASD"
-    #     ePnb  = Pnb / Ω
-    #  elseif design_code == "AISI S100-16 LRFD"
-    #     ePnb = Pnb * ϕ_LRFD
-    #  elseif design_code == "AISI S100-16 LSD"
-    #     ePnb = Pnb * ϕ_LSD
-    #  elseif design_code == "nominal"
-    #      ePnb = Pnb
-    # end
-
     ePnb = calculate_factored_strength(Pnb, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
 
     return Pnb, ePnb 
 
@@ -705,18 +693,7 @@ function j611(Anv, Fu, design_code, connection_type)
         ϕ_LRFD = 0.65
         ϕ_LSD = 0.75
 
-        # if design_code == "AISI S100-16 ASD"
-        #     ePnv  = Pnv / Ω
-        #  elseif design_code == "AISI S100-16 LRFD"
-        #     ePnv = Pnv * ϕ_LRFD
-        #  elseif design_code == "AISI S100-16 LSD"
-        #     ePnv = Pnv * ϕ_LSD
-        #  elseif design_code == "nominal"
-        #      ePnv = Pnv
-        # end
-
         ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
-
 
     end
 
@@ -814,17 +791,7 @@ function appAj341(;Ab, Fn, design_code)
 
     Pn = Ab * Fn
 
-    # if design_code == "AISI S100-16 ASD"
-    #    ePn  = Pn / Ω
-    # elseif design_code == "AISI S100-16 LRFD"
-    #     ePn = Pn * ϕ
-    # elseif design_code == "nominal"
-    #     ePn = Pn
-    # end
-
     ePn = calculate_factored_strength(Pn, Ω, ϕ, [], design_code)
-
-
 
     return Pn, ePn
 
