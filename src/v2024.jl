@@ -383,8 +383,17 @@ end
 # CHAPTER G — MEMBERS IN SHEAR, WEB CRIPPLING, AND TORSION
 #---------------------------------------------------------------------------
 
-#Eqs. G2.1-1 and G2.1-2: nominal shear strength of webs without transverse stiffeners (Vn, λv) — Vy (Eq. G2.1-3) is computed elsewhere and passed in
-function g2_1__1to3(Vcr, Vy, design_code)  #no transverse stiffeners
+#Eq. G2.1-3: yield shear force of the cross-section (Vy)
+function g2_1__3(h, t, Fy)
+
+    Vy = 0.6 * h * t * Fy
+
+    return Vy
+
+end
+
+#Eqs. G2.1-1 and G2.1-2: nominal shear strength of webs without transverse stiffeners (Vn, λv) — Vy (Eq. G2.1-3, see g2_1__3) is passed in
+function g2_1__1to2(Vcr, Vy, design_code)  #no transverse stiffeners
 
     Ω = 1.67
     ϕ_LRFD = 0.90
