@@ -1228,4 +1228,61 @@ function appendix2_Fcre_flexural(section_type, Sfc, Cb, A, E, G, Ix, Iy, J, Cw,
     return Fcre
 end
 
+#---------------------------------------------------------------------------
+# SECTION F3.2 PARAMETERS (Eqs. F3.2-3 to F3.2-5) AND Eq. F3.2-6 WITH Mpnet, My3net GIVEN
+#---------------------------------------------------------------------------
+
+#Eq. F3.2-3: shape factor ks = Mp/My (the pre-qualification value is NOT 1.0; ks Mne is the plastic moment of a fully braced beam)
+f3_2__3(Mp, My) = Mp / My
+
+#Eq. F3.2-4: symmetry factor βs = 2yc/d ≥ 0.4 (yc = distance from the compression fiber to the centroid, d = depth; = 1.0 for sections symmetric about the bending axis)
+f3_2__4(yc, d) = max(2 * yc / d, 0.4)
+
+#Eq. F3.2-5: member moment at the strain limit My3 = Mp - (Mp - My)/9 (also the limit in Eqs. F4-1 and F4-2)
+f3_2__5(Mp, My) = Mp - (Mp - My) / 9
+
+#Eq. F3.2-6: nominal flexural strength for local buckling at a net section with holes when Mpnet and My3net are already known
+#(see f3_2__6to9 for the form that computes them from Zfnet, Sfnet, Fy). Mnℓ for a member with holes is the lesser of
+#Eq. F3.2-1 (f3_2__1to2, with the lesser of Mcrℓ at the gross or net section) and this equation (Mcrℓ at the net section).
+function f3_2__6(Mne, Mcrℓnet, ks, αs, βs, Mpnet, My3net, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    λℓ = sqrt(Mne / Mcrℓnet)
+
+    Mnℓnet = min(Mpnet * ((1 + 0.10 * αs * λℓ^2) / (1 + 0.55 * βs * λℓ^2 * (Mpnet / (ks * Mne)))), My3net)
+
+    eMnℓnet = calculate_factored_strength(Mnℓnet, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Mnℓnet, eMnℓnet
+
+end
+
+#---------------------------------------------------------------------------
+# NAMES USED BEFORE v0.3.0 (kept so that existing scripts keep running)
+#---------------------------------------------------------------------------
+
+const f32 = f3_2__1to2
+const f32_3 = f3_2__3
+const f32_4 = f3_2__4
+const f32_5 = f3_2__5
+const f32_6 = f3_2__6
+const f4 = f4__1to2
+const f4_4 = f4__4
+const g2_1__1_2_3 = g2_1__1to2
+const g31_5 = g3__1to5
+const g36_7 = g3__6to7
+
+#Eqs. G3-9 and G3-10 for a slotted hole with semicircular ends: returns (A_h, d_h_eq, L_h_eq); A_h = π(d_h/2)² is the circular-hole area used before v0.3.0
+function g39_10(d_h, L_h)
+
+    A_h = π * (d_h / 2)^2
+    d_h_eq, L_h_eq = g3__9to10(A_h, d_h, L_h)
+
+    return A_h, d_h_eq, L_h_eq
+
+end
+
 end #module

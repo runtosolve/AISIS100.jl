@@ -263,7 +263,7 @@ function f411(My, Mcrd, design_code)
     if λd <= 0.673
         Mnd=My
     else
-        Mnd=(1-0.22*(Mcrd/My)^0.4)*(Mcrd/My)^0.4*My
+        Mnd=(1-0.22*(Mcrd/My)^0.5)*(Mcrd/My)^0.5*My   #Eq. F4.1-2 (exponent 0.5; was 0.4 before September 2026)
     end
 
     eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
@@ -814,7 +814,7 @@ function table_2_3_3__1(CorZ,t,b,d,θ)
 
     if CorZ==0
 
-        Ixf=t*(t^2*b^2+4*b*d^3+t^2*b*d+t^2*b*d+d^4)/(12*(b+d))
+        Ixf=t*(t^2*b^2+4*b*d^3+t^2*b*d+d^4)/(12*(b+d))   #Table 2.3.1.3-1 (duplicated t^2*b*d term removed September 2026)
         Iyf=t*(b^4+4*d*b^3)/(12*(b+d))
         Ixyf=(t*b^2*d^2)/(4*(b+d))
         xof=b^2/(2*(b+d))
@@ -1087,5 +1087,785 @@ function app2C2262(t, Lh, Lcrd)
     tr = t * (1 - Lh/Lcrd)^(1/3)
 
 end
+
+
+# ===========================================================================================
+# AISI S100-16 Section A3.3.2 -- Strength Increase From Cold Work of Forming
+# ===========================================================================================
+
+"""
+    a332(; Fyv, Fuv, R, t, C, θ=90.0)
+
+AISI S100-16 Section A3.3.2, Eqs. A3.3.2-1 to A3.3.2-4. Average yield stress `Fya` of the full
+unreduced section (compression members) or of the full flange (flexural members) from the
+virgin yield stress `Fyv`, virgin tensile strength `Fuv`, inside bend radius `R`, thickness `t`,
+and `C`, the ratio of total corner area to full area (of the section, or of the controlling
+flange for flexural members -- see `a332_C`). `Fyf` is taken as the virgin yield stress
+(no flat tests). Returns a NamedTuple with `Fya`, `Fyc`, `Bc`, `m`, `C`, `Fyf` and
+`eq_A332_2_applies`, which is `false` when Eq. A3.3.2-2 is outside its limits
+(Fuv/Fyv ≥ 1.2, R/t ≤ 7, included angle `θ` ≤ 120°).
+
+Section A3.3.2 permits the increase only for sections not subject to strength reduction from
+local or distortional buckling at stress level Fy (for beams, Mn = Mne from Section F3 and
+Mnd = My from Section F4); see `a332_applicable_flexure`.
+"""
+function a332(;Fyv, Fuv, R, t, C, θ=90.0)
+
+    Bc = 3.69 * (Fuv/Fyv) - 0.819 * (Fuv/Fyv)^2 - 1.79      #Eq. A3.3.2-3
+    m = 0.192 * (Fuv/Fyv) - 0.068                            #Eq. A3.3.2-4
+    Fyc = Bc * Fyv / (R/t)^m                                 #Eq. A3.3.2-2
+    Fyf = Fyv
+    Fya = min(C * Fyc + (1 - C) * Fyf, Fuv)                  #Eq. A3.3.2-1
+
+    eq_A332_2_applies = (Fuv/Fyv >= 1.2) & (R/t <= 7) & (θ <= 120.0)
+
+    return (Fya=Fya, Fyc=Fyc, Bc=Bc, m=m, C=C, Fyf=Fyf, eq_A332_2_applies=eq_A332_2_applies)
+
+end
+
+"""
+    a332_corner_area(R, t; θ=90.0)
+
+Cross-sectional area of one bent corner of included angle `θ` (degrees), inside radius `R`,
+thickness `t`: arc length at the centerline radius (R + t/2) times `t`.
+"""
+a332_corner_area(R, t; θ=90.0) = deg2rad(θ) * (R + t/2) * t
+
+"""
+    a332_C(; w, t, R, n_corners=2, d=0.0, θ=90.0)
+
+Ratio `C` of total corner cross-sectional area to full cross-sectional area (Section A3.3.2)
+for a flat of width `w` plus `n_corners` corners, and optionally the adjacent flat `d` (e.g. a
+stiffening lip). For the controlling flange of a lipped C-section flexural member use
+`w` = flange flat width, `n_corners` = 2 (web/flange and flange/lip corners), and
+`d` = 0 to count only the flange flat as the "full flange" (the convention that reproduces
+the SFIA Technical Guide tables) or `d` = lip flat width to include the lip.
+"""
+function a332_C(;w, t, R, n_corners=2, d=0.0, θ=90.0)
+
+    Ac = n_corners * a332_corner_area(R, t; θ=θ)
+    C = Ac / ((w + d) * t + Ac)
+
+    return C
+
+end
+
+"""
+    a332_applicable_flexure(; Se, Sf, Mnd, My, rtol=1e-6)
+
+Section A3.3.2 applicability for a flexural member: the cold work increase is permitted only
+when the section is not subject to strength reduction from local or distortional buckling at
+stress level Fy, i.e. the effective section modulus at Fy equals the gross section modulus
+(Mn = Mne = Sf Fy from Section F3.1) and Mnd = My from Section F4.
+"""
+function a332_applicable_flexure(;Se, Sf, Mnd, My, rtol=1e-6)
+
+    local_ok = Se >= Sf * (1 - rtol)
+    distortional_ok = Mnd >= My * (1 - rtol)
+
+    return local_ok & distortional_ok
+
+end
+
+
+# ===========================================================================================
+# AISI S100-16 Appendix 1 -- Effective Width of Elements
+# ===========================================================================================
+
+"""
+    appendix1_1_1(; w, t, f, k, E, μ)
+
+Appendix 1 Section 1.1(a), uniformly compressed stiffened element, Eqs. 1.1-1 to 1.1-4.
+`w` flat width, `t` thickness, `f` compressive stress in the element, `k` plate buckling
+coefficient (4.0 for a stiffened element supported by a web on each edge). Returns
+`(b, ρ, λ, Fcr, k)`. For serviceability (Section 1.1(b), Procedure I) call with `f = fd`.
+"""
+function appendix1_1_1(;w, t, f, k, E, μ)
+
+    Fcr = k * π^2 * E / (12 * (1 - μ^2)) * (t/w)^2     #Eq. 1.1-4
+    λ = sqrt(max(f, 0.0) / Fcr)                         #Eq. 1.1-3
+
+    if λ <= 0.673
+        ρ = 1.0
+    else
+        ρ = (1 - 0.22/λ) / λ                            #Eq. 1.1-2
+    end
+
+    b = ρ * w                                           #Eq. 1.1-1
+
+    return (b=b, ρ=ρ, λ=λ, Fcr=Fcr, k=k)
+
+end
+
+"""
+    appendix1_1_1_2(; w, t, f1, f2, ho, bo, E, μ)
+
+Appendix 1 Section 1.1.2(a), webs and other stiffened elements under stress gradient,
+Eqs. 1.1.2-1 to 1.1.2-10. Stresses are computed on the effective section, compression
+positive: `f1` at the more compressed edge (f1 ≥ f2), `f2` at the other edge, tension negative.
+`ho` out-to-out web depth, `bo` out-to-out compression flange width. Returns
+`(b1, b2, be, k, ψ, ρ, λ, Fcr)` with `b1` adjacent to the f1 edge and `b2` adjacent to the
+f2 edge (webs, Figure 1.1.2-1(a)) or to the neutral axis side. For webs (f2 in tension), Section
+1.1.2 also requires b1 + b2 not to exceed the compression portion of the web, which the caller
+checks because it depends on the effective neutral axis (see `f311_lipped_cee`).
+"""
+function appendix1_1_1_2(;w, t, f1, f2, ho, bo, E, μ)
+
+    ψ = abs(f2 / f1)                                        #Eq. 1.1.2-1
+
+    if f2 < 0.0   #(1) webs, f1 compression and f2 tension
+
+        k = 4 + 2 * (1 + ψ)^3 + 2 * (1 + ψ)                 #Eq. 1.1.2-2
+        be = appendix1_1_1(w=w, t=t, f=f1, k=k, E=E, μ=μ)
+
+        if ho/bo <= 4
+            b1 = be.b / (3 + ψ)                             #Eq. 1.1.2-3
+            b2 = ψ > 0.236 ? be.b / 2 : be.b - b1           #Eqs. 1.1.2-4, 1.1.2-5
+        else
+            b1 = be.b / (3 + ψ)                             #Eq. 1.1.2-6
+            b2 = be.b / (1 + ψ) - b1                        #Eq. 1.1.2-7
+        end
+
+    else   #(2) other stiffened elements, f1 and f2 both compression
+
+        k = 4 + 2 * (1 - ψ)^3 + 2 * (1 - ψ)                 #Eq. 1.1.2-8
+        be = appendix1_1_1(w=w, t=t, f=f1, k=k, E=E, μ=μ)
+        b1 = be.b / (3 - ψ)                                 #Eq. 1.1.2-9
+        b2 = be.b - b1                                      #Eq. 1.1.2-10
+
+    end
+
+    return (b1=b1, b2=b2, be=be.b, k=k, ψ=ψ, ρ=be.ρ, λ=be.λ, Fcr=be.Fcr)
+
+end
+
+"""
+    appendix1_1_1_3(; w, t, f1, f2, ho, bo, dh, wc, E, μ, method=:appendix1_1_2_1)
+
+Appendix 1 Section 1.1.3(a), C-section web with a hole under stress gradient (strength
+determination). `w` = h, the flat web depth, `dh` the hole depth (hole centered at mid-depth),
+`wc` the compression portion of the web flat measured from the compression flange corner to
+the neutral axis, `f1`/`f2` the compression/tension stresses at the ends of the flat computed
+on the effective section, `ho`/`bo` as in Section 1.1.2.
+
+- dh/h < 0.38: `b1`, `b2` from Section 1.1.2(a) assuming no hole exists in the web
+  (`hole_governs = false`).
+- dh/h ≥ 0.38: the compression portion of the web between the flange corner and the hole edge
+  (`wu` = min(wc, h/2 - dh/2)) is an unstiffened element (Section 1.2.1, k = 0.43) with f = f1;
+  `b1` is its effective width measured from the flange corner, `b2` = 0, and the ineffective
+  portion is adjacent to the hole (`hole_governs = true`). `method = :appendix1_1_2_2` instead
+  treats that element as an unstiffened element under stress gradient (Section 1.2.2,
+  Eq. 1.2.2-2, both edges in compression, stress decreasing toward the hole edge), a less
+  conservative alternative that is not the wording of Section 1.1.3.
+
+Warns when the geometry is outside the Section 1.1.3 limits (dh/h ≤ 0.7, h/t ≤ 200). The
+serviceability determination of Section 1.1.3(b) uses Section 1.1.2 assuming no hole.
+Returns `(b1, b2, k, ρ, λ, ψ, hole_governs, wu)`.
+"""
+function appendix1_1_1_3(;w, t, f1, f2, ho, bo, dh, wc, E, μ, method=:appendix1_1_2_1)
+
+    dh / w > 0.7 && @warn "Section 1.1.3 applies for dh/h ≤ 0.7; dh/h = $(dh / w)"
+    w / t > 200 && @warn "Section 1.1.3 applies for h/t ≤ 200; h/t = $(w / t)"
+
+    if dh / w < 0.38
+
+        e = appendix1_1_1_2(w=w, t=t, f1=f1, f2=f2, ho=ho, bo=bo, E=E, μ=μ)
+        return (b1=e.b1, b2=e.b2, k=e.k, ρ=e.ρ, λ=e.λ, ψ=e.ψ, hole_governs=false, wu=NaN)
+
+    else
+
+        wu = min(wc, w / 2 - dh / 2)          #unstiffened element between the flange corner and the hole
+        if method == :appendix1_1_2_1
+            e = appendix1_1_2_1(w=wu, t=t, f=f1, E=E, μ=μ)                                #Section 1.1.3(a) as written, k = 0.43
+        elseif method == :appendix1_1_2_2
+            f2u = f1 * (wc - wu) / wc                                                   #compressive stress at the hole edge
+            e = appendix1_1_2_2(w=wu, t=t, f1=f1, f2=f2u, E=E, μ=μ, f1_at_supported_edge=true)   #alternative: stress gradient, Eq. 1.2.2-2
+        else
+            error("method must be :appendix1_1_2_1 or :appendix1_1_2_2")
+        end
+        return (b1=e.b, b2=0.0, k=e.k, ρ=e.ρ, λ=e.λ, ψ=abs(f2 / f1), hole_governs=true, wu=wu)
+
+    end
+
+end
+
+"""
+    appendix1_1_2_1(; w, t, f, E, μ)
+
+Appendix 1 Section 1.2.1(a), uniformly compressed unstiffened element: Section 1.1(a) with
+k = 0.43. Returns `(b, ρ, λ, Fcr, k)`.
+"""
+appendix1_1_2_1(;w, t, f, E, μ) = appendix1_1_1(w=w, t=t, f=f, k=0.43, E=E, μ=μ)
+
+"""
+    appendix1_1_2_2(; w, t, f1, f2, E, μ, f1_at_supported_edge)
+
+Appendix 1 Section 1.2.2(a), unstiffened elements and edge stiffeners with stress gradient,
+Eqs. 1.2.2-1 to 1.2.2-7. `f1` is the maximum compressive stress on the element (positive),
+`f2` the stress at the other longitudinal edge (compression positive, tension negative), and
+`f1_at_supported_edge` says which edge carries f1. The four cases of the section are selected
+from the sign of `f2` and the location of f1:
+
+- both compression, f1 at the supported edge (stress decreases toward the unsupported edge,
+  Figure 1.2.2-1(a)): k = 0.578/(ψ + 0.34), Eq. 1.2.2-2
+- both compression, f1 at the unsupported edge (Figure 1.2.2-1(b)): Eq. 1.2.2-3
+- f2 tension, unsupported edge in compression (Figure 1.2.2-2(a)): Eqs. 1.2.2-4, 1.2.2-5
+- f2 tension, supported edge in compression (Figure 1.2.2-2(b)): Eqs. 1.2.2-6, 1.2.2-7
+
+The effective width `b` is measured from the supported edge. Returns `(b, ρ, λ, k, ψ, Fcr)`.
+"""
+function appendix1_1_2_2(;w, t, f1, f2, E, μ, f1_at_supported_edge=true)
+
+    ψ = abs(f2 / f1)                                        #Eq. 1.2.2-1
+
+    if f2 >= 0.0   #(1) both edges in compression
+
+        if f1_at_supported_edge
+            k = 0.578 / (ψ + 0.34)                          #Eq. 1.2.2-2
+        else
+            k = 0.57 - 0.21 * ψ + 0.07 * ψ^2                #Eq. 1.2.2-3
+        end
+
+        e = appendix1_1_1(w=w, t=t, f=f1, k=k, E=E, μ=μ)
+        ρ = e.ρ
+        λ = e.λ
+        Fcr = e.Fcr
+
+    else   #(2) f1 compression, f2 tension
+
+        if !f1_at_supported_edge   #(i) unsupported edge in compression
+
+            k = 0.57 + 0.21 * ψ + 0.07 * ψ^2                #Eq. 1.2.2-5
+            e = appendix1_1_1(w=w, t=t, f=f1, k=k, E=E, μ=μ)
+            λ = e.λ
+            Fcr = e.Fcr
+            if λ <= 0.673 * (1 + ψ)
+                ρ = 1.0
+            else
+                ρ = (1 + ψ) * (1 - 0.22 * (1 + ψ) / λ) / λ  #Eq. 1.2.2-4
+            end
+
+        else   #(ii) supported edge in compression
+
+            if ψ < 1.0
+                k = 1.70 + 5 * ψ + 17.1 * ψ^2               #Eq. 1.2.2-7
+                e = appendix1_1_1(w=w, t=t, f=f1, k=k, E=E, μ=μ)
+                λ = e.λ
+                Fcr = e.Fcr
+                if λ <= 0.673
+                    ρ = 1.0
+                else
+                    ρ = (1 - ψ) * (1 - 0.22 / λ) / λ + ψ    #Eq. 1.2.2-6
+                end
+            else
+                k = NaN
+                λ = NaN
+                Fcr = NaN
+                ρ = 1.0
+            end
+
+        end
+
+    end
+
+    ρ = min(ρ, 1.0)
+    b = ρ * w
+
+    return (b=b, ρ=ρ, λ=λ, k=k, ψ=ψ, Fcr=Fcr)
+
+end
+
+"""
+    appendix1_1_3(; w, t, f, D, d, θ, E, μ, ds_prime)
+
+Appendix 1 Section 1.3(a), uniformly compressed element with a simple lip edge stiffener,
+Eqs. 1.3-1 to 1.3-11 and Table 1.3-1. `w` flange flat width, `t` thickness, `f` stress in the
+compression flange, `D` overall lip dimension and `d` lip flat width (Figure 1.3-1), `θ` lip
+angle in degrees (140° ≥ θ ≥ 40°), `ds_prime` = d′s, the effective width of the lip from
+Section 1.2.1 or 1.2.2. Returns `(b, b1, b2, ds, k, ρ, λ, S, Ia, Is, RI, n)`: `b1` is the
+portion of the effective flange width adjacent to the web and `b2` the portion adjacent to
+the lip; `ds` is the reduced effective width of the stiffener used for section properties.
+"""
+function appendix1_1_3(;w, t, f, D, d, θ, E, μ, ds_prime)
+
+    (θ < 40.0 || θ > 140.0) && @warn "Section 1.3, Table 1.3-1 applies for 140° ≥ θ ≥ 40°; θ = $θ"
+    D/w > 0.8 && @warn "Section 1.3, Table 1.3-1 applies for D/w ≤ 0.8; D/w = $(D/w)"
+
+    S = 1.28 * sqrt(E / f)                                          #Eq. 1.3-7
+    Is = d^3 * t * sind(θ)^2 / 12                                   #Eq. 1.3-10
+
+    if w/t <= 0.328 * S
+
+        Ia = 0.0                                                    #no edge stiffener needed
+        RI = 1.0
+        n = NaN
+        k = 4.0
+        ρ = 1.0
+        λ = NaN
+        b = w                                                       #Eq. 1.3-1
+        b1 = w / 2                                                  #Eq. 1.3-2
+        b2 = w / 2
+        ds = ds_prime                                               #Eq. 1.3-3
+
+    else
+
+        Ia = min(399 * t^4 * ((w/t) / S - 0.328)^3, t^4 * (115 * (w/t) / S + 5))   #Eq. 1.3-8
+        RI = min(Is / Ia, 1.0)                                      #Eq. 1.3-9
+        n = max(0.582 - (w/t) / (4 * S), 1/3)                       #Eq. 1.3-11
+
+        if D/w <= 0.25                                              #Table 1.3-1
+            k = min(3.57 * RI^n + 0.43, 4.0)
+        else
+            k = min((4.82 - 5 * D/w) * RI^n + 0.43, 4.0)
+        end
+
+        e = appendix1_1_1(w=w, t=t, f=f, k=k, E=E, μ=μ)
+        b = e.b
+        ρ = e.ρ
+        λ = e.λ
+        b1 = (b / 2) * RI                                           #Eq. 1.3-4
+        b2 = b - b1                                                 #Eq. 1.3-5
+        ds = ds_prime * RI                                          #Eq. 1.3-6
+
+    end
+
+    return (b=b, b1=b1, b2=b2, ds=ds, k=k, ρ=ρ, λ=λ, S=S, Ia=Ia, Is=Is, RI=RI, n=n)
+
+end
+
+
+# ===========================================================================================
+# AISI S100-16 Section F3.1 -- Effective Width Method, flexural strength for local buckling
+# ===========================================================================================
+
+"""
+    f31(; Se, Fn, Set, Fy, design_code)
+
+AISI S100-16 Section F3.1, Eq. F3.1-1: Mn = Se Fn ≤ Set Fy, where `Se` is the effective section
+modulus at extreme fiber compressive stress `Fn` (Section F3.1.1, Appendix 1) and `Set` the
+effective section modulus at extreme fiber tension stress Fy. Returns `(Mn, eMn)` with
+Ω = 1.67, ϕ = 0.90 (LRFD), ϕ = 0.90 (LSD).
+"""
+function f31(;Se, Fn, Set, Fy, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    Mn = min(Se * Fn, Set * Fy)                                     #Eq. F3.1-1
+
+    eMn = calculate_factored_strength(Mn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return Mn, eMn
+
+end
+
+"""
+    f311_lipped_cee(; H, B, D, t, R, f, E, μ, θ=90.0, lip_method=:appendix1_1_2_2, dh=0.0, hole_method=:appendix1_1_2_1, tol=1e-8, maxiter=100)
+
+AISI S100-16 Section F3.1.1 (members without holes): effective section properties of a lipped
+C-section bending about its major axis (strong axis, compression flange at the top) at extreme
+fiber compressive stress `f` (= Fn for strength, = fd for serviceability Procedure I), with the
+effective width of every element from Appendix 1. `H` out-to-out web depth, `B` out-to-out
+flange width, `D` overall lip length, `t` design thickness, `R` inside bend radius, `θ` lip
+angle (degrees, 90 = perpendicular lip).
+
+Geometry is the centerline "linear method" of the AISI Cold-Formed Steel Design Manual: flats
+between the corner arcs (w = B - 2(R + t), h = H - 2(R + t), d = D - (R + t)) plus four 90°
+corner arcs of centerline radius r = R + t/2, all of thickness `t`. Distances `y` are measured
+from the extreme compression fiber (outside of the top flange).
+
+Effective widths, iterating on the effective neutral axis location `ycg`:
+
+- compression flange: Section 1.3 with `f` (the flange stress is taken conservatively as the
+  extreme fiber stress) and the lip effective width d′s from `lip_method`:
+  `:appendix1_1_2_2` (edge stiffener under stress gradient, Section 1.2.2, with f1 at the
+  flange/lip corner and f2 at the lip tip computed on the effective section) or
+  `:appendix1_1_2_1` (uniform compression at the f1 stress, k = 0.43);
+- web: Section 1.1.2 with f1 and f2 at the ends of the web flat computed on the effective
+  section, b1 + b2 limited to the compression portion of the web flat; with a web hole of depth
+  `dh` > 0 centered at mid-depth (Section F3.1.2), Section 1.1.3 instead (`hole_method`, see
+  `appendix1_1_1_3`), and the hole strip is removed from the section (net section through the
+  hole, the SFIA Technical Guide convention for Sxe, Ma);
+- tension flange, tension lip and the four corners: fully effective.
+
+Returns a NamedTuple with `Se` (effective section modulus, extreme compression fiber),
+`Set` (effective section modulus, extreme tension fiber), `Ie`, `Ae`, `ycg`, the gross
+properties of the same centerline model (`A`, `Ix`, `Sx`), `fully_effective`, the
+`flange`, `lip`, `web` element results, and `iterations`.
+"""
+function f311_lipped_cee(;H, B, D, t, R, f, E, μ, θ=90.0, lip_method=:appendix1_1_2_2, dh=0.0, hole_method=:appendix1_1_2_1, tol=1e-8, maxiter=100)
+
+    r = R + t/2                    #centerline corner radius
+    w = B - 2 * (R + t)            #flange flat
+    h = H - 2 * (R + t)            #web flat
+    d = D - (R + t)                #lip flat
+    c = R + t                      #distance from an outside face to the start of the adjacent flat
+
+    #90° corner arc: length, centroid offset from the arc center along each axis, own inertia
+    Lc = π * r / 2
+    ec = 2 * r / π
+    Ic = r^3 * (π/4 - 2/π)
+
+    #elements that never change: (length, y of centroid, own I about a horizontal centroidal axis)
+    fixed = [
+        (Lc, c - ec, Ic),                #top web/flange corner
+        (Lc, c - ec, Ic),                #top flange/lip corner
+        (Lc, H - c + ec, Ic),            #bottom web/flange corner
+        (Lc, H - c + ec, Ic),            #bottom flange/lip corner
+        (w, H - t/2, 0.0),               #tension flange flat
+        (d, H - c - d/2, d^3/12),        #tension lip flat
+    ]
+
+    gross = [fixed; (w, t/2, 0.0); (d, c + d/2, d^3/12); (h, H/2, h^3/12)]
+    A_g = t * sum(e[1] for e in gross)
+    y_g = sum(e[1] * e[2] for e in gross) / sum(e[1] for e in gross)
+    Ix_g = t * sum(e[1] * (e[2] - y_g)^2 + e[3] for e in gross)
+    Sx_g = Ix_g / y_g
+
+    ycg = y_g
+    iterations = 0
+    flange = lip = web = nothing
+    elements = gross
+
+    while true
+
+        iterations += 1
+
+        #compression lip: stresses at the flange/lip corner (f1) and at the lip tip (f2), effective section
+        f1_lip = f * (ycg - c) / ycg
+        f2_lip = f * (ycg - c - d) / ycg
+        if lip_method == :appendix1_1_2_2
+            lip = appendix1_1_2_2(w=d, t=t, f1=f1_lip, f2=f2_lip, E=E, μ=μ, f1_at_supported_edge=true)
+        elseif lip_method == :appendix1_1_2_1
+            lip = appendix1_1_2_1(w=d, t=t, f=f1_lip, E=E, μ=μ)
+        else
+            error("lip_method must be :appendix1_1_2_2 or :appendix1_1_2_1")
+        end
+
+        #compression flange with the lip edge stiffener
+        flange = appendix1_1_3(w=w, t=t, f=f, D=D, d=d, θ=θ, E=E, μ=μ, ds_prime=lip.b)
+
+        #web under stress gradient: f1 compression at the top of the flat, f2 tension at the bottom
+        f1_web = f * (ycg - c) / ycg
+        f2_web = -f * (H - ycg - c) / ycg
+        wc = ycg - c                                     #compression portion of the web flat
+        if dh > 0.0
+            w_ = appendix1_1_1_3(w=h, t=t, f1=f1_web, f2=f2_web, ho=H, bo=B, dh=dh, wc=wc, E=E, μ=μ, method=hole_method)
+            hole_governs = w_.hole_governs
+        else
+            e_ = appendix1_1_1_2(w=h, t=t, f1=f1_web, f2=f2_web, ho=H, bo=B, E=E, μ=μ)
+            w_ = (b1=e_.b1, b2=e_.b2, k=e_.k, ρ=e_.ρ, λ=e_.λ, ψ=e_.ψ, hole_governs=false, wu=NaN)
+            hole_governs = false
+        end
+        if hole_governs
+            web_fully_effective = w_.b1 >= w_.wu
+            ineffective_width = web_fully_effective ? 0.0 : w_.wu - w_.b1
+        else
+            web_fully_effective = (w_.b1 + w_.b2) >= wc
+            ineffective_width = web_fully_effective ? 0.0 : wc - w_.b1 - w_.b2
+        end
+        web = (b1=w_.b1, b2=w_.b2, k=w_.k, ψ=w_.ψ, ρ=w_.ρ, λ=w_.λ,
+               f1=f1_web, f2=f2_web, compression_portion=wc, fully_effective=web_fully_effective,
+               ineffective_width=ineffective_width, dh=dh, hole_governs=hole_governs, wu=w_.wu)
+
+        #effective elements
+        elements = copy(fixed)
+        push!(elements, (flange.b, t/2, 0.0))                              #compression flange flat, b = b1 + b2
+        push!(elements, (flange.ds, c + flange.ds/2, flange.ds^3/12))      #compression lip, ds from the corner
+        if dh > 0.0
+            #net section through the hole: web flat above and below the hole
+            y_hole_top = H/2 - dh/2
+            y_hole_bot = H/2 + dh/2
+            if hole_governs
+                L1 = min(w_.b1, y_hole_top - c)                            #effective, from the flange corner toward the hole
+                push!(elements, (L1, c + L1/2, L1^3/12))
+                if ycg < y_hole_top                                        #neutral axis above the hole: tension part above the hole
+                    L1t = y_hole_top - ycg
+                    push!(elements, (L1t, ycg + L1t/2, L1t^3/12))
+                end
+            else
+                Lw = y_hole_top - c
+                if web_fully_effective || (w_.b1 + w_.b2) >= min(wc, Lw)
+                    push!(elements, (Lw, c + Lw/2, Lw^3/12))
+                else
+                    L1 = w_.b1
+                    push!(elements, (L1, c + L1/2, L1^3/12))
+                    y_top = ycg - w_.b2
+                    L2 = y_hole_top - y_top
+                    push!(elements, (L2, y_top + L2/2, L2^3/12))
+                end
+            end
+            L3 = (H - c) - y_hole_bot                                      #below the hole, fully effective
+            push!(elements, (L3, y_hole_bot + L3/2, L3^3/12))
+        elseif web_fully_effective
+            push!(elements, (h, H/2, h^3/12))
+        else
+            L1 = w_.b1                                                     #adjacent to the compression flange
+            push!(elements, (L1, c + L1/2, L1^3/12))
+            y_top = ycg - w_.b2                                            #b2 adjacent to the neutral axis
+            L2 = (H - c) - y_top                                           #b2 plus the tension portion
+            push!(elements, (L2, y_top + L2/2, L2^3/12))
+        end
+
+        ycg_new = sum(e[1] * e[2] for e in elements) / sum(e[1] for e in elements)
+
+        if abs(ycg_new - ycg) < tol || iterations >= maxiter
+            ycg = ycg_new
+            break
+        end
+        ycg = ycg_new
+
+    end
+
+    Ae = t * sum(e[1] for e in elements)
+    Ie = t * sum(e[1] * (e[2] - ycg)^2 + e[3] for e in elements)
+    Se = Ie / ycg
+    Set = Ie / (H - ycg)
+
+    fully_effective = (flange.ρ == 1.0) & (lip.ρ == 1.0) & web.fully_effective
+
+    return (Se=Se, Set=Set, Ie=Ie, Ae=Ae, ycg=ycg, A=A_g, Ix=Ix_g, Sx=Sx_g, ycg_gross=y_g,
+            fully_effective=fully_effective, flange=flange, lip=lip, web=web,
+            w=w, h=h, d=d, r=r, f=f, dh=dh, lip_method=lip_method, iterations=iterations)
+
+end
+
+"""
+    f311_lipped_cee_serviceability(; M, Fy, kwargs...)
+
+Appendix 1 Section 1.1(b) Procedure I serviceability determination for a lipped C-section
+in major-axis bending: the effective moment of inertia `Ie` at the service moment `M`, i.e.
+at the extreme fiber stress `fd` for which `Se(fd) fd = M` (the SFIA Technical Guide
+convention, where M is the allowable moment and the section is the unpunched section, i.e.
+`dh` = 0; Section 1.1.3(b) likewise assumes no hole for serviceability). `fd` is found by bisection on (0, Fy] (`appendix1_1_1b_procedure_I`); if
+Se(Fy) Fy ≤ M then fd = Fy. Remaining keyword arguments are those of `f311_lipped_cee`.
+Returns `(Ie, Se, fd, section)` where `section` is the `f311_lipped_cee` result at fd.
+"""
+f311_lipped_cee_serviceability(;M, Fy, tol=1e-6, kwargs...) = appendix1_1_1b_procedure_I(f311_lipped_cee; M=M, Fy=Fy, tol=tol, kwargs...)
+
+"""
+    f311_unlipped_cee(; H, B, t, R, f, E, μ, tol=1e-8, maxiter=100)
+
+AISI S100-16 Section F3.1.1 (members without holes): effective section properties of an
+unlipped C-section (track) bending about its major axis (compression flange at the top) at
+extreme fiber compressive stress `f` (= Fn for strength, = fd for serviceability Procedure I).
+`H` out-to-out web depth, `B` out-to-out flange width, `t` design thickness, `R` inside bend
+radius.
+
+Geometry is the centerline linear model: flats w = B - (R + t) (one bend, free edge),
+h = H - 2(R + t), plus two 90° corner arcs of centerline radius r = R + t/2. Distances `y` are
+measured from the extreme compression fiber.
+
+Effective widths, iterating on the effective neutral axis location `ycg`:
+
+- compression flange: uniformly compressed unstiffened element, Section 1.2.1 (k = 0.43), at
+  the extreme fiber stress `f` (conservative; the ineffective portion is at the free edge,
+  which does not change the major-axis properties);
+- web: Section 1.1.2 with f1 and f2 at the ends of the web flat computed on the effective
+  section, b1 + b2 limited to the compression portion of the web flat;
+- tension flange and the two corners: fully effective.
+
+Returns a NamedTuple with `Se`, `Set`, `Ie`, `Ae`, `ycg`, the gross properties of the same
+model (`A`, `Ix`, `Sx`), `fully_effective`, the `flange` and `web` element results, and
+`iterations`.
+"""
+function f311_unlipped_cee(;H, B, t, R, f, E, μ, tol=1e-8, maxiter=100)
+
+    r = R + t/2                    #centerline corner radius
+    w = B - (R + t)                #flange flat, one bend and a free edge
+    h = H - 2 * (R + t)            #web flat
+    c = R + t                      #distance from an outside face to the start of the adjacent flat
+
+    Lc = π * r / 2
+    ec = 2 * r / π
+    Ic = r^3 * (π/4 - 2/π)
+
+    fixed = [
+        (Lc, c - ec, Ic),                #top corner
+        (Lc, H - c + ec, Ic),            #bottom corner
+        (w, H - t/2, 0.0),               #tension flange flat
+    ]
+
+    gross = [fixed; (w, t/2, 0.0); (h, H/2, h^3/12)]
+    A_g = t * sum(e[1] for e in gross)
+    y_g = sum(e[1] * e[2] for e in gross) / sum(e[1] for e in gross)
+    Ix_g = t * sum(e[1] * (e[2] - y_g)^2 + e[3] for e in gross)
+    Sx_g = Ix_g / max(y_g, H - y_g)
+
+    ycg = y_g
+    iterations = 0
+    flange = web = nothing
+    elements = gross
+
+    while true
+
+        iterations += 1
+
+        #compression flange, unstiffened under uniform compression
+        flange = appendix1_1_2_1(w=w, t=t, f=f, E=E, μ=μ)
+
+        #web under stress gradient
+        f1_web = f * (ycg - c) / ycg
+        f2_web = -f * (H - ycg - c) / ycg
+        wc = ycg - c
+        e_ = appendix1_1_1_2(w=h, t=t, f1=f1_web, f2=f2_web, ho=H, bo=B, E=E, μ=μ)
+        web_fully_effective = (e_.b1 + e_.b2) >= wc
+        ineffective_width = web_fully_effective ? 0.0 : wc - e_.b1 - e_.b2
+        web = (b1=e_.b1, b2=e_.b2, k=e_.k, ψ=e_.ψ, ρ=e_.ρ, λ=e_.λ,
+               f1=f1_web, f2=f2_web, compression_portion=wc, fully_effective=web_fully_effective,
+               ineffective_width=ineffective_width)
+
+        elements = copy(fixed)
+        push!(elements, (flange.b, t/2, 0.0))                              #compression flange flat
+        if web_fully_effective
+            push!(elements, (h, H/2, h^3/12))
+        else
+            L1 = e_.b1                                                     #adjacent to the compression flange
+            push!(elements, (L1, c + L1/2, L1^3/12))
+            y_top = ycg - e_.b2                                            #b2 adjacent to the neutral axis
+            L2 = (H - c) - y_top                                           #b2 plus the tension portion
+            push!(elements, (L2, y_top + L2/2, L2^3/12))
+        end
+
+        ycg_new = sum(e[1] * e[2] for e in elements) / sum(e[1] for e in elements)
+
+        if abs(ycg_new - ycg) < tol || iterations >= maxiter
+            ycg = ycg_new
+            break
+        end
+        ycg = ycg_new
+
+    end
+
+    Ae = t * sum(e[1] for e in elements)
+    Ie = t * sum(e[1] * (e[2] - ycg)^2 + e[3] for e in elements)
+    Se = Ie / ycg
+    Set = Ie / (H - ycg)
+
+    fully_effective = (flange.ρ == 1.0) & web.fully_effective
+
+    return (Se=Se, Set=Set, Ie=Ie, Ae=Ae, ycg=ycg, A=A_g, Ix=Ix_g, Sx=Sx_g, ycg_gross=y_g,
+            fully_effective=fully_effective, flange=flange, web=web,
+            w=w, h=h, r=r, f=f, iterations=iterations)
+
+end
+
+"""
+    appendix1_1_1b_procedure_I(section_fn; M, Fy, tol=1e-6, kwargs...)
+
+Appendix 1 Section 1.1(b) Procedure I serviceability determination: the effective moment of
+inertia `Ie` at the service moment `M`, i.e. at the extreme fiber stress `fd` for which
+`Se(fd) fd = M`, where `section_fn(; f, kwargs...)` returns the effective section at stress
+`f` (`f311_lipped_cee`, `f311_unlipped_cee`). `fd` is found by bisection on (0, Fy]; if
+Se(Fy) Fy ≤ M then fd = Fy. Returns `(Ie, Se, fd, section)` where `section` is the
+`section_fn` result at fd.
+"""
+function appendix1_1_1b_procedure_I(section_fn; M, Fy, tol=1e-6, kwargs...)
+
+    g(fd) = section_fn(;f=fd, kwargs...).Se * fd - M
+
+    if g(Fy) <= 0.0
+        fd = Fy
+    else
+        lo = 1e-6 * Fy
+        hi = Fy
+        while (hi - lo) > tol * Fy
+            mid = (lo + hi) / 2
+            if g(mid) > 0.0
+                hi = mid
+            else
+                lo = mid
+            end
+        end
+        fd = (lo + hi) / 2
+    end
+
+    section = section_fn(;f=fd, kwargs...)
+
+    return (Ie=section.Ie, Se=section.Se, fd=fd, section=section)
+
+end
+
+"""
+    f311_unlipped_cee_serviceability(; M, Fy, kwargs...)
+
+Appendix 1 Section 1.1(b) Procedure I serviceability determination for an unlipped C-section
+(track) in major-axis bending at the service moment `M` (see `appendix1_1_1b_procedure_I`;
+the SFIA Technical Guide convention takes M as the allowable moment). Remaining keyword
+arguments are those of `f311_unlipped_cee`. Returns `(Ie, Se, fd, section)`.
+"""
+f311_unlipped_cee_serviceability(;M, Fy, tol=1e-6, kwargs...) = appendix1_1_1b_procedure_I(f311_unlipped_cee; M=M, Fy=Fy, tol=tol, kwargs...)
+
+
+
+# ===========================================================================================
+# AISI S100-16 Appendix 2, Section 2.3.3.3 -- Distortional buckling of flexural members
+# ===========================================================================================
+
+"""
+    appendix2_2_3_3_3(; t, ho, b, d, θ, E, μ, Sf, f1, f2, kϕ=0.0, Lm=Inf, M1=nothing, M2=nothing, CorZ=0, t_web=t)
+
+AISI S100-16 Appendix 2 Section 2.3.3.3, elastic distortional buckling moment of a C- or
+Z-section with a single web and a simple lip edge stiffener, Eqs. 2.3.3.3-1 to 2.3.3.3-6 with
+the flange properties of Table 2.3.1.3-1 (`table_2_3_3__1`) and the flange stiffnesses of
+Eqs. 2.3.1.3-3 and 2.3.1.3-5. `b` and `d` are centerline flange width and lip length
+(b = B - t, d = D - t/2 for a 90° lip), `ho` out-to-out web depth, `θ` lip angle in
+degrees, `Sf` gross section modulus to the extreme compression fiber, `f1`/`f2` the web end
+stresses on the gross section (pure symmetric bending: f1 = -f2, ξweb = 2), `kϕ` restraint
+stiffness (0 = unrestrained), `Lm` distance between discrete distortional restraints, and
+`M1`/`M2` the end moments for the moment gradient factor β (β = 1.0 when omitted). `t_web`
+is the web thickness used in Eqs. 2.3.3.3-5 and 2.3.3.3-6 (the modified thickness tr of
+Section 2.3.4.3 for members with web holes, see `appendix2_2_3_4_3`).
+Returns `(Mcrd, Fcrd, Lcrd, L, β, kϕfe, kϕwe, kϕfg, kϕwg, flange, t_web)`.
+"""
+function appendix2_2_3_3_3(;t, ho, b, d, θ, E, μ, Sf, f1, f2, kϕ=0.0, Lm=Inf, M1=nothing, M2=nothing, CorZ=0, t_web=t)
+
+    G = E / (2 * (1 + μ))
+
+    Af, Jf, Ixf, Iyf, Ixyf, Cwf, xof, hxf, hyf, yof = table_2_3_3__1(CorZ, t, b, d, θ)   #Table 2.3.1.3-1
+
+    Lcrd = appendix2_2_3_3_2__4(ho, μ, t, Ixf, xof, hxf, Cwf, Ixyf, Iyf)                #Eq. 2.3.3.3-4
+    L = min(Lcrd, Lm)
+
+    if M1 === nothing
+        β = 1.0
+    else
+        β = min(max(1 + 0.4 * (L / Lm)^0.7 * (1 + M1 / M2)^0.7, 1.0), 1.3)               #Eq. 2.3.3.3-3
+    end
+
+    kϕfe = app23133(E, Ixf, xof, hxf, Cwf, Ixyf, Iyf, L, G, Jf)                          #Eq. 2.3.1.3-3
+    kϕwe = app23335(E, t_web, μ, ho, L)                                                  #Eq. 2.3.3.3-5
+    kϕfg = app23135(L, Af, xof, hxf, Ixyf, Iyf, yof, Ixf)                                #Eq. 2.3.1.3-5
+    kϕwg = app23336(f1, f2, ho, t_web, L)                                                #Eq. 2.3.3.3-6
+
+    Fcrd = app23332(β, kϕfe, kϕwe, kϕ, kϕfg, kϕwg)                                      #Eq. 2.3.3.3-2
+    Mcrd = Sf * Fcrd                                                                     #Eq. 2.3.3.3-1
+
+    flange = (Af=Af, Jf=Jf, Ixf=Ixf, Iyf=Iyf, Ixyf=Ixyf, Cwf=Cwf, xof=xof, hxf=hxf, hyf=hyf, yof=yof)
+
+    return (Mcrd=Mcrd, Fcrd=Fcrd, Lcrd=Lcrd, L=L, β=β, kϕfe=kϕfe, kϕwe=kϕwe, kϕfg=kϕfg, kϕwg=kϕwg, flange=flange, t_web=t_web)
+
+end
+
+"""
+    appendix2_2_3_4_3(; Lh, t, kwargs...)
+
+AISI S100-16 Appendix 2 Section 2.3.4.3, distortional buckling moment of a flexural member with
+a web hole of length `Lh`: Section 2.3.3.3 (`appendix2_2_3_3_3`, same keyword arguments) with
+the web thickness in Eqs. 2.3.3.3-5 and 2.3.3.3-6 replaced by tr = t (1 - Lh/Lcrd)^(1/3)
+(Eq. 2.3.4.3-1), where Lcrd is the gross-section half-wavelength of Eq. 2.3.3.3-4. Returns the
+`appendix2_2_3_3_3` NamedTuple plus `tr` and `Lh`.
+"""
+function appendix2_2_3_4_3(;Lh, t, kwargs...)
+
+    gross = appendix2_2_3_3_3(;t=t, kwargs...)
+    tr = app2C2262(t, Lh, gross.Lcrd)                                                     #Eq. 2.3.4.3-1
+    net = appendix2_2_3_3_3(;t=t, t_web=tr, kwargs...)
+
+    return merge(net, (tr=tr, Lh=Lh, Mcrd_gross=gross.Mcrd))
+
+end
+
 
 end #module

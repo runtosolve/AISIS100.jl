@@ -18,7 +18,8 @@ Cold-formed steel design requires working through dozens of AISI S100 equations 
 
 `AISIS100.jl` implements the **AISI S100 North American Specification for the Design of Cold-Formed Steel Structural Members** as callable Julia functions.
 
-- Covers Chapters **D–H (member design)**, **J (connections)**, **K (testing)**, and **Appendix 2 (distortional buckling)**
+- Covers Chapters **D–H (member design)**, **J (connections)**, **K (testing)**, **Appendix 1 (effective width of elements)**, and **Appendix 2 (elastic buckling, distortional buckling)**
+- `v16S3` also implements the **Effective Width Method** for flexure (§F3.1 with Appendix 1, including C-section webs with holes, §1.1.3), the **strength increase from cold work of forming** (§A3.3.2), and the closed-form distortional buckling moment (Appendix 2 §2.3.3.3, §2.3.4.3 for members with web holes)
 - Returns both **nominal strength** and **design strength** (ASD, LRFD, LSD)
 - Function names map directly to **spec section numbers**
 
@@ -81,6 +82,23 @@ println("Allowable: $eMne kip·in")
 ```
 Nominal:   550.0 kip·in
 Allowable: 329.0 kip·in
+```
+
+**Effective Width Method, lipped C-section in major-axis bending — §F3.1 with Appendix 1 (ASD)**
+
+```julia
+# 362S162-33 stud, Fy = 33 ksi: effective section at f = Fy, then Eq. F3.1-1
+sec = AISIS100.v16S3.f311_lipped_cee(H=3.625, B=1.625, D=0.5, t=0.0346, R=0.0765,
+                                     f=33.0, E=29500.0, μ=0.3)
+Mn, Ma = AISIS100.v16S3.f31(Se=sec.Se, Fn=33.0, Set=sec.Set, Fy=33.0, design_code="ASD")
+
+# same section through a 1.5 in. web punchout (§F3.1.2, Appendix 1 §1.1.3)
+net = AISIS100.v16S3.f311_lipped_cee(H=3.625, B=1.625, D=0.5, t=0.0346, R=0.0765,
+                                     f=33.0, E=29500.0, μ=0.3, dh=1.5, hole_method=:appendix1_1_2_2)
+
+# cold work of forming, §A3.3.2 (applies only to sections fully effective at Fy)
+C = AISIS100.v16S3.a332_C(w=sec.w, t=0.0346, R=0.0765, n_corners=2)
+Fya = AISIS100.v16S3.a332(Fyv=33.0, Fuv=45.0, R=0.0765, t=0.0346, C=C).Fya
 ```
 
 **Combined axial and biaxial bending — §H1.2.1**

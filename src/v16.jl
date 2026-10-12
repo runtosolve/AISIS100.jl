@@ -237,7 +237,7 @@ function f411(My, Mcrd, design_code)
     if λd <= 0.673
         Mnd=My
     else
-        Mnd=(1-0.22*(Mcrd/My)^0.4)*(Mcrd/My)^0.4*My
+        Mnd=(1-0.22*(Mcrd/My)^0.5)*(Mcrd/My)^0.5*My   #Eq. F4.1-2 (exponent 0.5; was 0.4 before September 2026)
     end
 
     eMnd = calculate_factored_strength(Mnd, Ω, ϕ_LRFD, ϕ_LSD, design_code)
@@ -760,7 +760,7 @@ function table23131(CorZ,t,b,d,θ)
 
     if CorZ==0
 
-        Ixf=t*(t^2*b^2+4*b*d^3+t^2*b*d+t^2*b*d+d^4)/(12*(b+d))
+        Ixf=t*(t^2*b^2+4*b*d^3+t^2*b*d+d^4)/(12*(b+d))   #Table 2.3.1.3-1 (duplicated t^2*b*d term removed September 2026)
         Iyf=t*(b^4+4*d*b^3)/(12*(b+d))
         Ixyf=(t*b^2*d^2)/(4*(b+d))
         xof=b^2/(2*(b+d))
