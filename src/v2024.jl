@@ -459,9 +459,10 @@ end
 #Eqs. G3-1 to G3-5
 function g3__1to5(d_h, L_h, h, Vy)
 
-    a0 = -0.173 - 0.9252*(L_h/d_h) + 0.0524*(L_h/d_h)^2
-    a1 = -3.4095 + 1.9922*(L_h/d_h) - 0.0995*(L_h/d_h)^2
-    a2 = 2.684 - 1.084*(L_h/d_h) + 0.0466*(L_h/d_h)^2
+    # Coefficients as printed in AISI S100-2024 (Eqs. G3-3 to G3-5)
+    a0 = -0.173 - 0.925*(L_h/d_h) + 0.0524*(L_h/d_h)^2
+    a1 = -3.41 + 1.99*(L_h/d_h) - 0.0995*(L_h/d_h)^2
+    a2 = 2.68 - 1.08*(L_h/d_h) + 0.0466*(L_h/d_h)^2
 
     if (d_h/h<=0.10) & (d_h/h > 0.0)
 
@@ -491,7 +492,8 @@ end
 #Eq. G3-8
 function g3__8(a, h, d_h, b_f)
 
-    kv = 4.86 + 6.15 * (h / a) - 3.63 * (d_h / h) - 19.58 * (d_h / a) + 13.88 * (d_h^2 / (a * h)) + 0.57* (b_f / h)
+    # Coefficients as printed in AISI S100-2024 (Eq. G3-8)
+    kv = 4.86 + 6.15 * (h / a) - 3.63 * (d_h / h) - 19.6 * (d_h / a) + 13.9 * (d_h^2 / (a * h)) + 0.57 * (b_f / h)
 
 end
 
@@ -1275,10 +1277,13 @@ const g2_1__1_2_3 = g2_1__1to2
 const g31_5 = g3__1to5
 const g36_7 = g3__6to7
 
-#Eqs. G3-9 and G3-10 for a slotted hole with semicircular ends: returns (A_h, d_h_eq, L_h_eq); A_h = π(d_h/2)² is the circular-hole area used before v0.3.0
+#Eqs. G3-9 and G3-10 for a slotted hole with semicircular ends (width d_h, length L_h >= d_h):
+#returns (A_h, d_h_eq, L_h_eq). A_h is the area of the slotted hole, d_h(L_h - d_h) + π(d_h/2)²,
+#per AISI S100-2024 Section G3; it reduces to the circular area π(d_h/2)² when L_h = d_h.
+#Versions through 0.4.0 used the circular area π(d_h/2)² for every hole.
 function g39_10(d_h, L_h)
 
-    A_h = π * (d_h / 2)^2
+    A_h = d_h * (L_h - d_h) + π * (d_h / 2)^2
     d_h_eq, L_h_eq = g3__9to10(A_h, d_h, L_h)
 
     return A_h, d_h_eq, L_h_eq
