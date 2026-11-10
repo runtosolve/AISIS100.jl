@@ -22,9 +22,45 @@ function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
         eRn = Rn * ϕ_LSD
     elseif design_code == "nominal"
         eRn = Rn
+    else
+        throw(ArgumentError("design_code must be \"ASD\", \"LRFD\", \"LSD\" or \"nominal\", got \"$design_code\""))
     end
 
     return eRn
+
+end
+
+#---------------------------------------------------------------------------
+# CHAPTER D — MEMBERS IN TENSION
+#---------------------------------------------------------------------------
+
+#Eq. D2-1: nominal tensile strength for yielding of the gross section, Tn = Ag Fy
+function d2__1(Ag, Fy, design_code)
+
+    Ω = 1.67
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.90
+
+    Tn = Ag * Fy
+
+    eTn = calculate_factored_strength(Tn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return (Rn=Tn, eRn=eTn)
+
+end
+
+#Eq. D3-1: nominal tensile strength for rupture of the net section, Tn = Anet Fu
+function d3__1(Anet, Fu, design_code)
+
+    Ω = 2.00
+    ϕ_LRFD = 0.75
+    ϕ_LSD = 0.75
+
+    Tn = Anet * Fu
+
+    eTn = calculate_factored_strength(Tn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return (Rn=Tn, eRn=eTn)
 
 end
 
@@ -1261,6 +1297,184 @@ function f3_2__6(Mne, Mcrℓnet, ks, αs, βs, Mpnet, My3net, design_code)
     return Mnℓnet, eMnℓnet
 
 end
+
+#---------------------------------------------------------------------------
+# CHAPTER J — CONNECTIONS AND JOINTS
+#---------------------------------------------------------------------------
+
+#Eqs. J2.6-1 to J2.6-7: nominal shear strength of a fillet weld (Section J2.5 in S100-16, J2.6 in S100-2024).
+#loading_direction = "longitudinal" or "transverse". L, t1, t2, tw in in. (kips, ksi) unless t_limit is changed
+#(t_limit = 0.10 in. or 2.54 mm, the thickness above which Eq. J2.6-7 also applies).
+#Pnv = min(Pnv1, Pnv2) carries its own Ω/ϕ; Pn (Eq. J2.6-7) carries Ω = 2.55, ϕ = 0.60 (LRFD), 0.50 (LSD).
+#The available strength is the lesser of the two available strengths, so the Ω/ϕ of the governing
+#equation is used (v16.j25 applies Ω = 2.55 to both whenever t > 0.10 in.).
+function j2_6__1to7(L, t1, Fu1, t2, Fu2, tw, Fxx, loading_direction, design_code; t_limit=0.10)
+
+    t = min(t1, t2)
+
+    if loading_direction == "longitudinal"
+
+        if L/t < 25.0
+            Pnv1 = (1 - 0.01*L/t1) * L * t1 * Fu1     #Eq. J2.6-1
+            Pnv2 = (1 - 0.01*L/t2) * L * t2 * Fu2     #Eq. J2.6-2
+            Ω, ϕ_LRFD, ϕ_LSD = 2.55, 0.60, 0.50
+        else
+            Pnv1 = 0.75 * t1 * L * Fu1                #Eq. J2.6-3
+            Pnv2 = 0.75 * t2 * L * Fu2                #Eq. J2.6-4
+            Ω, ϕ_LRFD, ϕ_LSD = 3.05, 0.50, 0.40
+        end
+
+    elseif loading_direction == "transverse"
+
+        Pnv1 = t1 * L * Fu1                           #Eq. J2.6-5
+        Pnv2 = t2 * L * Fu2                           #Eq. J2.6-6
+        Ω, ϕ_LRFD, ϕ_LSD = 2.35, 0.65, 0.60
+
+    else
+        throw(ArgumentError("loading_direction must be \"longitudinal\" or \"transverse\", got $loading_direction"))
+    end
+
+    Pnv = min(Pnv1, Pnv2)
+    ePnv = calculate_factored_strength(Pnv, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    if t > t_limit
+        Pn = 0.75 * tw * L * Fxx                      #Eq. J2.6-7
+        ePn = calculate_factored_strength(Pn, 2.55, 0.60, 0.50, design_code)
+    else
+        Pn = NaN
+        ePn = NaN
+    end
+
+    if t > t_limit && ePn < ePnv
+        Rn, eRn = Pn, ePn
+    else
+        Rn, eRn = Pnv, ePnv
+    end
+
+    return (Pnv1=Pnv1, Pnv2=Pnv2, Pnv=Pnv, ePnv=ePnv, Pn=Pn, ePn=ePn, Rn=Rn, eRn=eRn)
+
+end
+
+#Table J3.3.1-1: bearing factor C. hole_type = "standard hole", or "oversized hole" / "short-slotted hole".
+#d and t in in.; the table applies for 0.024 in. ≤ t < 0.1875 in.
+function table_j3_3_1__1(d, t, hole_type)
+
+    (0.024 <= t < 0.1875) || throw(DomainError(t, "Table J3.3.1-1 applies for 0.024 in. ≤ t < 0.1875 in."))
+
+    d_t = d / t
+
+    if hole_type == "standard hole"
+        C = d_t < 10.0 ? 3.0 : (d_t <= 22.0 ? 4.0 - 0.1 * d_t : 1.8)
+    elseif hole_type in ("oversized hole", "short-slotted hole")
+        C = d_t < 7.0 ? 3.0 : (d_t <= 18.0 ? 1.0 + 14.0 / d_t : 1.8)
+    else
+        throw(ArgumentError("hole_type must be \"standard hole\", \"oversized hole\" or \"short-slotted hole\", got $hole_type"))
+    end
+
+    return C
+
+end
+
+#Table J3.3.1-2: modification factor mf for the type of bearing connection.
+#connection_type = "single shear" (single shear and outside sheets of double shear) or "inside sheet of double shear"
+#hole_type = "standard hole", "oversized or short-slotted hole parallel to load", "short-slotted hole perpendicular to load"
+#washers = "yes" (under both bolt head and nut) or "no" (none, or only one washer); ignored for inside sheets.
+function table_j3_3_1__2(connection_type, hole_type, washers)
+
+    if connection_type == "single shear"
+        if hole_type == "standard hole"
+            mf = washers == "yes" ? 1.00 : 0.75
+        elseif washers == "yes"
+            throw(ArgumentError("Table J3.3.1-2 gives no mf for oversized or slotted holes with washers under both bolt head and nut"))
+        elseif hole_type == "oversized or short-slotted hole parallel to load"
+            mf = 0.70
+        elseif hole_type == "short-slotted hole perpendicular to load"
+            mf = 0.55
+        else
+            throw(ArgumentError("unknown hole_type $hole_type"))
+        end
+    elseif connection_type == "inside sheet of double shear"
+        if hole_type == "standard hole"
+            mf = 1.33
+        elseif hole_type == "oversized or short-slotted hole parallel to load"
+            mf = 1.10
+        elseif hole_type == "short-slotted hole perpendicular to load"
+            mf = 0.90
+        else
+            throw(ArgumentError("unknown hole_type $hole_type"))
+        end
+    else
+        throw(ArgumentError("connection_type must be \"single shear\" or \"inside sheet of double shear\", got $connection_type"))
+    end
+
+    return mf
+
+end
+
+#Eq. J3.3.1-1: nominal bearing strength without consideration of bolt hole deformation, Pnb = C mf d t Fu
+function j3_3_1__1(C, mf, d, t, Fu, design_code)
+
+    Ω = 2.50
+    ϕ_LRFD = 0.60
+    ϕ_LSD = 0.50
+
+    Pnb = C * mf * d * t * Fu
+
+    ePnb = calculate_factored_strength(Pnb, Ω, ϕ_LRFD, ϕ_LSD, design_code)
+
+    return (Rn=Pnb, eRn=ePnb)
+
+end
+
+#Appendix A, Eq. J3.4-1: nominal bolt strength in shear only or tension only, Pn = Ab Fn (United States and Mexico).
+#Fn = Fnv or Fnt from Tables J3.4-1(a) and J3.4-1(b). LSD (Canada) is in Appendix B and is not implemented here.
+function appendixA_j3_4__1(Ab, Fn, design_code)
+
+    design_code == "LSD" && throw(ArgumentError("Appendix A Section J3.4 applies to ASD and LRFD only; see Appendix B for LSD"))
+
+    Ω = 2.00
+    ϕ_LRFD = 0.75
+
+    Pn = Ab * Fn
+
+    ePn = calculate_factored_strength(Pn, Ω, ϕ_LRFD, NaN, design_code)
+
+    return (Rn=Pn, eRn=ePn)
+
+end
+
+#Table J6-1: safety and resistance factors for rupture (Section J6).
+#connection_type = "welds", "bolts", "screws" or "power-actuated fasteners".
+#S100-2024 groups bolts, screws, and PAFs (Ω = 2.00, ϕ = 0.75); S100-16 used Ω = 2.22, ϕ = 0.65 for bolts and
+#Ω = 3.00, ϕ = 0.50 for screws and PAFs.
+function table_j6__1(connection_type)
+
+    if connection_type == "welds"
+        return (Ω=2.50, ϕ_LRFD=0.60, ϕ_LSD=0.75)
+    elseif connection_type in ("bolts", "screws", "power-actuated fasteners")
+        return (Ω=2.00, ϕ_LRFD=0.75, ϕ_LSD=0.75)
+    else
+        throw(ArgumentError("connection_type must be \"welds\", \"bolts\", \"screws\" or \"power-actuated fasteners\", got $connection_type"))
+    end
+
+end
+
+#Eq. J6.1-1: nominal shear rupture strength, Pnv = 0.6 Fu Anv, with Ω/ϕ from Table J6-1
+#(lap connections with a single bolt are designed by Section J3.5 instead).
+function j6_1__1(Fu, Anv, connection_type, design_code)
+
+    f = table_j6__1(connection_type)
+
+    Pnv = 0.6 * Fu * Anv
+
+    ePnv = calculate_factored_strength(Pnv, f.Ω, f.ϕ_LRFD, f.ϕ_LSD, design_code)
+
+    return (Rn=Pnv, eRn=ePnv)
+
+end
+
+#Eq. J6.1-2: net shear area when each fastener pulls through the material toward the limiting edge, Anv = 2 n t enet
+j6_1__2(n, t, enet) = 2 * n * t * enet
 
 #---------------------------------------------------------------------------
 # NAMES USED BEFORE v0.3.0 (kept so that existing scripts keep running)

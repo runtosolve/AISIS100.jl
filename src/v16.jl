@@ -632,7 +632,7 @@ function tablej3311(;d, t, hole_shape)
 
             elseif (d/t >= 7.0) & (d/t <= 18.0)
 
-                C = 1.0 + 14.0 * (d/t)
+                C = 1.0 + 14.0 / (d/t)   #Table J3.3.1-1: 1 + 14/(d/t)
 
             else d/t > 18
 
