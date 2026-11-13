@@ -1,14 +1,20 @@
 name = "AISIS100"
 uuid = "01f7396e-a581-4110-84fa-e8964400bef8"
 authors = ["Cris Moen <cris.moen@runtosolve.com>"]
-version = "0.4.3"
+version = "0.4.4"
 
 [deps]
-CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[weakdeps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[extensions]
+AISIS100TablesExt = ["CSV", "DataFrames"]
+AISIS100UnitfulExt = "Unitful"
 
 [compat]
 CSV = "0.10, 1"

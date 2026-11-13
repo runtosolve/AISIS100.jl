@@ -1,6 +1,7 @@
 module v16S3
 
-using CSV, DataFrames, Unitful, Statistics, LinearAlgebra
+using Statistics, LinearAlgebra
+import ..inches, ..millimeters, ..read_g5_table   #provided by the package extensions
 
 
 function calculate_factored_strength(Rn, Ω, ϕ_LRFD, ϕ_LSD, design_code)
@@ -450,9 +451,7 @@ end
 function table_g52()
 
     filename = string(@__DIR__, "/assets/AISI_S100_16_Table_G5_2.csv")
-    data = CSV.File(filename)
-
-    table = DataFrame(support_condition = Vector(data.support_condition), flange_condition = Vector(data.flange_condition), load_case = Vector(data.load_case), load_location=Vector(data.load_location), C=Vector(data.C), C_R = Vector(data.C_R), C_N = Vector(data.C_N), C_h = Vector(data.C_h), ASD = Vector(data.ASD), LRFD = Vector(data.LRFD), LSD = Vector(data.LSD), limits = Vector(data.limits))
+    table = read_g5_table(filename)
 
     return table
 
@@ -462,9 +461,7 @@ end
 function table_g53()
 
     filename = string(@__DIR__, "/assets/AISI_S100_16_Table_G5_3.csv")
-    data = CSV.File(filename)
-
-    table = DataFrame(support_condition = Vector(data.support_condition), flange_condition = Vector(data.flange_condition), load_case = Vector(data.load_case), load_location=Vector(data.load_location), C=Vector(data.C), C_R = Vector(data.C_R), C_N = Vector(data.C_N), C_h = Vector(data.C_h), ASD = Vector(data.ASD), LRFD = Vector(data.LRFD), LSD = Vector(data.LSD), limits = Vector(data.limits))
+    table = read_g5_table(filename)
 
     return table
 
@@ -623,7 +620,7 @@ end
 
 function tablej3311(;d, t, hole_shape)
 
-    if (t >= 0.024u"inch") & (t <= 0.1875u"inch")
+    if (t >= inches(0.024)) & (t <= inches(0.1875))
 
         if hole_shape == "standard hole"
     
